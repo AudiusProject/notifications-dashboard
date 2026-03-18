@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Notifications Dashboard
 
-## Getting Started
+Internal dashboard for managing Audius push notifications: announcements (one-off sends) and automated triggers. Uses Next.js, Supabase, and the pedalboard notifications service for sending via AWS SNS.
 
-First, run the development server:
+## Local development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). Set env in `.env.local` (see `.env.example`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Required for send to work:** Supabase (schema + `uploads` bucket), `PEDALBOARD_NOTIFICATIONS_URL` pointing at the notifications service, and optionally `PEDALBOARD_NOTIFICATIONS_SECRET` if the service requires it.
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. **Push the repo** to GitHub (or connect your existing repo in Vercel).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+2. **Import in Vercel**
+   - Go to [vercel.com/new](https://vercel.com/new)
+   - Import the `notifications-dashboard` repo
+   - Vercel will detect Next.js; leave **Build Command** as `npm run build` and **Output Directory** as default.
+
+3. **Environment variables**  
+   In the Vercel project → **Settings** → **Environment Variables**, add:
+
+   | Variable | Required | Notes |
+   |----------|----------|--------|
+   | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key |
+   | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (server-only) |
+   | `PEDALBOARD_NOTIFICATIONS_URL` | Yes | Notifications service URL, e.g. `https://notifications.audius.engineering` (no trailing slash) |
+   | `PEDALBOARD_NOTIFICATIONS_SECRET` | If auth enabled | Same value as `ANNOUNCEMENT_SEND_SECRET` on the notifications service |
+
+   Add them for **Production** (and Preview if you want the same behavior in PR previews).
+
+4. **Deploy**  
+   Trigger a deploy (e.g. push to the main branch or click **Redeploy**). The dashboard will be available at your Vercel URL.
+
+5. **Supabase**  
+   Ensure the same Supabase project has:
+   - The full schema applied (including `announcements`, `announcement_recipients`, `automated_triggers`, etc.)
+   - A storage bucket named `uploads` for CSV and image uploads.
+
+## Env reference
+
+See `.env.example`. The dashboard does **not** need AWS keys; sending is done by the pedalboard notifications service. Amplitude and AWS vars in `.env.example` are for future stats integration.
