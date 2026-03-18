@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getSessionFromRequest } from '@/lib/auth'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { AutomatedTrigger, TriggerPerformance } from '@/lib/supabase/types'
 
 type Context = { params: Promise<{ id: string }> }
 
-export async function GET(_request: NextRequest, { params }: Context) {
+async function requireSession(request: NextRequest) {
+  const session = await getSessionFromRequest(request)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  return null
+}
+
+export async function GET(request: NextRequest, { params }: Context) {
+  const unauth = await requireSession(request)
+  if (unauth) return unauth
   const { id } = await params
   const supabase = getSupabaseAdmin()
 
@@ -25,6 +34,8 @@ export async function GET(_request: NextRequest, { params }: Context) {
 }
 
 export async function PATCH(request: NextRequest, { params }: Context) {
+  const unauth = await requireSession(request)
+  if (unauth) return unauth
   const { id } = await params
   const supabase = getSupabaseAdmin()
   const updates = await request.json()

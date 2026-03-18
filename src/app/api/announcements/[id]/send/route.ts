@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getSessionFromRequest } from '@/lib/auth'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { Announcement } from '@/lib/supabase/types'
 
@@ -7,6 +8,8 @@ type Context = { params: Promise<{ id: string }> }
 const SEND_BATCH_SIZE = 500
 
 export async function POST(request: NextRequest, { params }: Context) {
+  const session = await getSessionFromRequest(request)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
   const supabase = getSupabaseAdmin()
 
@@ -41,10 +44,10 @@ export async function POST(request: NextRequest, { params }: Context) {
     )
   }
 
-  const baseUrl = process.env.PEDALBOARD_NOTIFICATIONS_URL
+  const baseUrl = process.env.NOTIFICATIONS_SERVICE_URL
   if (!baseUrl) {
     return NextResponse.json(
-      { error: 'PEDALBOARD_NOTIFICATIONS_URL not configured' },
+      { error: 'NOTIFICATIONS_SERVICE_URL not configured' },
       { status: 500 }
     )
   }
@@ -67,9 +70,9 @@ export async function POST(request: NextRequest, { params }: Context) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(process.env.PEDALBOARD_NOTIFICATIONS_SECRET
+          ...(process.env.ANNOUNCEMENT_SEND_SECRET
             ? {
-                Authorization: `Bearer ${process.env.PEDALBOARD_NOTIFICATIONS_SECRET}`,
+                Authorization: `Bearer ${process.env.ANNOUNCEMENT_SEND_SECRET}`,
               }
             : {}),
         },

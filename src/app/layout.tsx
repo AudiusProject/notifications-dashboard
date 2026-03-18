@@ -1,7 +1,5 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
-import { Sidebar } from '@/components/sidebar'
-import { Header } from '@/components/header'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import './globals.css'
 
@@ -23,15 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
-        <TooltipProvider>
-          <div className="flex h-screen overflow-hidden bg-neutral-50">
-            <Sidebar />
-            <div className="flex flex-1 flex-col overflow-hidden">
-              <Header />
-              <main className="flex-1 overflow-y-auto">{children}</main>
-            </div>
-          </div>
-        </TooltipProvider>
+        <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>
   )

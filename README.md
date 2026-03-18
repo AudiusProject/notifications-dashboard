@@ -11,7 +11,9 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). Set env in `.env.local` (see `.env.example`).
 
-**Required for send to work:** Supabase (schema + `uploads` bucket), `PEDALBOARD_NOTIFICATIONS_URL` pointing at the notifications service, and optionally `PEDALBOARD_NOTIFICATIONS_SECRET` if the service requires it.
+**Access:** Only users who sign in with a Google account whose email ends with `@audius.co` or `@audius.org` can use the dashboard. Configure Google OAuth (see `.env.example`: `GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `AUTH_SESSION_SECRET`).
+
+**Required for send to work:** Supabase (schema + `uploads` bucket), `NOTIFICATIONS_SERVICE_URL` pointing at the notifications service, and optionally `ANNOUNCEMENT_SEND_SECRET` if the service requires it.
 
 ## Deploy on Vercel
 
@@ -27,11 +29,14 @@ Open [http://localhost:3000](http://localhost:3000). Set env in `.env.local` (se
 
    | Variable | Required | Notes |
    |----------|----------|--------|
+   | `GOOGLE_CLIENT_ID` | Yes | Google OAuth client ID (server-side verification) |
+   | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Yes | Same Google OAuth client ID (client-side sign-in) |
+   | `AUTH_SESSION_SECRET` | Yes | At least 32 characters; used to sign session JWT |
    | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key |
    | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (server-only) |
-   | `PEDALBOARD_NOTIFICATIONS_URL` | Yes | Notifications service URL, e.g. `https://notifications.audius.engineering` (no trailing slash) |
-   | `PEDALBOARD_NOTIFICATIONS_SECRET` | If auth enabled | Same value as `ANNOUNCEMENT_SEND_SECRET` on the notifications service |
+   | `NOTIFICATIONS_SERVICE_URL` | Yes | Notifications service URL, e.g. `https://notifications.audius.engineering` (no trailing slash) |
+   | `ANNOUNCEMENT_SEND_SECRET` | If auth enabled | Same value as `ANNOUNCEMENT_SEND_SECRET` on the notifications service |
 
    Add them for **Production** (and Preview if you want the same behavior in PR previews).
 

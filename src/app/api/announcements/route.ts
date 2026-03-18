@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getSessionFromRequest } from '@/lib/auth'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { Announcement } from '@/lib/supabase/types'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const session = await getSessionFromRequest(request)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const supabase = getSupabaseAdmin()
   const { data, error } = await supabase
     .from('announcements')
@@ -15,6 +18,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const session = await getSessionFromRequest(request)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const supabase = getSupabaseAdmin()
   const formData = await request.formData()
 
