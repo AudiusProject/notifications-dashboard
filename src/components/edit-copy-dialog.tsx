@@ -103,7 +103,11 @@ export function EditCopyDialog({ trigger, open, onOpenChange, onSaved }: Props) 
           </div>
 
           <div className="flex flex-col items-center">
-            <NotificationPreview heading={heading} body={body} />
+            <NotificationPreview
+              heading={heading}
+              body={body}
+              imageUrl={trigger.image_url}
+            />
           </div>
         </div>
 

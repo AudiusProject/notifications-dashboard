@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Upload, LinkIcon, ImageIcon, Send } from 'lucide-react'
@@ -21,12 +21,32 @@ export function AnnouncementForm() {
   const [body, setBody] = useState('')
   const [ctaLink, setCtaLink] = useState('')
   const [csvFile, setCsvFile] = useState<File | null>(null)
+  const [imageSource, setImageSource] = useState<'upload' | 'url'>('upload')
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imageUrlInput, setImageUrlInput] = useState('')
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const canSaveDraft = internalLabel.trim() && heading.trim() && body.trim()
   const canSend = canSaveDraft && csvFile
+
+  useEffect(() => {
+    if (!imageFile) {
+      setFilePreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(imageFile)
+    setFilePreviewUrl(url)
+    return () => {
+      URL.revokeObjectURL(url)
+    }
+  }, [imageFile])
+
+  const previewImageUrl =
+    imageSource === 'url'
+      ? (imageUrlInput.trim() || null)
+      : filePreviewUrl
 
   const handleSaveDraft = useCallback(
     async () => {
@@ -41,10 +61,20 @@ export function AnnouncementForm() {
         formData.append('status', 'draft')
         formData.append('created_by', 'Ciara')
         if (csvFile) formData.append('csv', csvFile)
-        if (imageFile) formData.append('image', imageFile)
+        if (imageSource === 'upload' && imageFile) {
+          formData.append('image', imageFile)
+        }
+        if (imageSource === 'url' && imageUrlInput.trim()) {
+          formData.append('image_url', imageUrlInput.trim())
+        }
 
         const res = await fetch('/api/announcements', { method: 'POST', body: formData })
-        if (!res.ok) throw new Error('Failed to save')
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(
+            typeof data.error === 'string' ? data.error : 'Failed to save'
+          )
+        }
         router.push('/announcements')
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to save')
@@ -52,7 +82,17 @@ export function AnnouncementForm() {
         setSaving(false)
       }
     },
-    [internalLabel, heading, body, ctaLink, csvFile, imageFile, router]
+    [
+      internalLabel,
+      heading,
+      body,
+      ctaLink,
+      csvFile,
+      imageSource,
+      imageFile,
+      imageUrlInput,
+      router,
+    ]
   )
 
   const handleSend = useCallback(
@@ -69,10 +109,20 @@ export function AnnouncementForm() {
         formData.append('status', 'ready')
         formData.append('created_by', 'Ciara')
         formData.append('csv', csvFile)
-        if (imageFile) formData.append('image', imageFile)
+        if (imageSource === 'upload' && imageFile) {
+          formData.append('image', imageFile)
+        }
+        if (imageSource === 'url' && imageUrlInput.trim()) {
+          formData.append('image_url', imageUrlInput.trim())
+        }
 
         const createRes = await fetch('/api/announcements', { method: 'POST', body: formData })
-        if (!createRes.ok) throw new Error('Failed to save')
+        if (!createRes.ok) {
+          const data = await createRes.json().catch(() => ({}))
+          throw new Error(
+            typeof data.error === 'string' ? data.error : 'Failed to save'
+          )
+        }
         const { id } = await createRes.json()
 
         const sendRes = await fetch(`/api/announcements/${id}/send`, { method: 'POST' })
@@ -88,7 +138,17 @@ export function AnnouncementForm() {
         setSaving(false)
       }
     },
-    [internalLabel, heading, body, ctaLink, csvFile, imageFile, router]
+    [
+      internalLabel,
+      heading,
+      body,
+      ctaLink,
+      csvFile,
+      imageSource,
+      imageFile,
+      imageUrlInput,
+      router,
+    ]
   )
 
   return (
@@ -161,23 +221,69 @@ export function AnnouncementForm() {
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label>Optional image</Label>
-                <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-neutral-200 px-4 py-8 transition-colors hover:border-neutral-400">
-                  <ImageIcon className="size-6 text-neutral-400" />
-                  <span className="text-sm font-medium">
-                    {imageFile?.name ?? 'Click to upload image'}
-                  </span>
-                  <span className="text-xs text-neutral-500">
-                    JPG, PNG, GIF up to 2MB
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/gif"
-                    className="hidden"
-                    onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-                  />
-                </label>
+                <p className="text-xs text-neutral-500">
+                  Rich push needs a public <span className="font-mono">https://</span>{' '}
+                  URL. File uploads go to Supabase Storage (<span className="font-mono">uploads</span>{' '}
+                  bucket, public).
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant={imageSource === 'upload' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setImageSource('upload')
+                      setImageUrlInput('')
+                    }}
+                  >
+                    Upload file
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={imageSource === 'url' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setImageSource('url')
+                      setImageFile(null)
+                    }}
+                  >
+                    Image URL
+                  </Button>
+                </div>
+                {imageSource === 'upload' ? (
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-neutral-200 px-4 py-8 transition-colors hover:border-neutral-400">
+                    <ImageIcon className="size-6 text-neutral-400" />
+                    <span className="text-sm font-medium">
+                      {imageFile?.name ?? 'Click to upload image'}
+                    </span>
+                    <span className="text-xs text-neutral-500">
+                      JPEG, PNG, GIF, WebP up to 2MB
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      className="hidden"
+                      onChange={(e) =>
+                        setImageFile(e.target.files?.[0] ?? null)
+                      }
+                    />
+                  </label>
+                ) : (
+                  <div className="space-y-2">
+                    <Input
+                      id="image-url"
+                      placeholder="https://cdn.example.com/announcement.png"
+                      className="font-mono text-sm"
+                      value={imageUrlInput}
+                      onChange={(e) => setImageUrlInput(e.target.value)}
+                    />
+                    <p className="text-xs text-neutral-500">
+                      Must be publicly reachable over HTTPS (no auth).
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -251,7 +357,11 @@ export function AnnouncementForm() {
 
         {/* Preview */}
         <div className="sticky top-10">
-          <NotificationPreview heading={heading} body={body} />
+          <NotificationPreview
+            heading={heading}
+            body={body}
+            imageUrl={previewImageUrl}
+          />
         </div>
       </div>
     </div>

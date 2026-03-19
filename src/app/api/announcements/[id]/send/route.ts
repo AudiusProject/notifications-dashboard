@@ -79,8 +79,8 @@ export async function POST(request: NextRequest, { params }: Context) {
         body: JSON.stringify({
           title: announcement.heading,
           body: announcement.body,
-          imageUrl: announcement.image_url ?? undefined,
-          ctaLink: announcement.cta_link ?? undefined,
+          image_url: announcement.image_url ?? undefined,
+          route: announcement.cta_link ?? undefined,
           userIds: batch,
         }),
       })

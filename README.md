@@ -15,6 +15,8 @@ Open [http://localhost:3000](http://localhost:3000). Set env in `.env.local` (se
 
 **Required for send to work:** Supabase (schema + `uploads` bucket), `NOTIFICATIONS_SERVICE_URL` pointing at the notifications service, and optionally `ANNOUNCEMENT_SEND_SECRET` if the service requires it.
 
+**Announcement images (rich push):** APNs/FCM need a **public `https://` URL**. In **Create Announcement** you can paste an image URL or upload a file. Uploads are stored in Supabase Storage (`uploads` bucket, e.g. under `images/announcements/…`) and must be **public** so push providers can fetch them.
+
 ## Deploy on Vercel
 
 1. **Push the repo** to GitHub (or connect your existing repo in Vercel).
@@ -46,8 +48,11 @@ Open [http://localhost:3000](http://localhost:3000). Set env in `.env.local` (se
 5. **Supabase**  
    Ensure the same Supabase project has:
    - The full schema applied (including `announcements`, `announcement_recipients`, `automated_triggers`, etc.)
-   - A storage bucket named `uploads` for CSV and image uploads.
+   - **Storage bucket `uploads`** (required for CSV + image uploads). If you see `{"error":"Bucket not found"}`, create it:
+     1. Supabase dashboard → **Storage** → **New bucket**
+     2. Name: **`uploads`**
+     3. For rich push images, objects must be reachable at a public `https://` URL — either turn on **Public bucket**, or add policies so **public read** applies to `images/announcements/*` (and your app can upload with the service role key used server-side).
 
 ## Env reference
 
-See `.env.example`. The dashboard does **not** need AWS keys; sending is done by the pedalboard notifications service. Amplitude and AWS vars in `.env.example` are for future stats integration.
+See `.env.example`. Push delivery is done by the pedalboard notifications service. Announcement image uploads use **Supabase Storage** only. Amplitude and AWS entries in `.env.example` are optional / future use.

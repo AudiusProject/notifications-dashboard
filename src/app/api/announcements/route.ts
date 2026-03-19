@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth'
+import {
+  parsePublicHttpsImageUrl,
+  uploadAnnouncementImageFile,
+} from '@/lib/announcementImage'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import {
+  UPLOADS_BUCKET,
+  formatStorageUploadError,
+} from '@/lib/supabaseStorage'
 import type { Announcement } from '@/lib/supabase/types'
 
 export async function GET(request: NextRequest) {
@@ -32,6 +40,7 @@ export async function POST(request: NextRequest) {
 
   const csvFile = formData.get('csv') as File | null
   const imageFile = formData.get('image') as File | null
+  const imageUrlRaw = (formData.get('image_url') as string | null)?.trim() ?? ''
 
   let audience_csv_url: string | null = null
   let audience_csv_filename: string | null = null
@@ -48,14 +57,20 @@ export async function POST(request: NextRequest) {
     audience_csv_filename = csvFile.name
 
     const { data: upload, error: uploadError } = await supabase.storage
-      .from('uploads')
+      .from(UPLOADS_BUCKET)
       .upload(`csv/${Date.now()}_${csvFile.name}`, csvFile, {
         contentType: 'text/csv',
       })
 
-    if (!uploadError && upload) {
+    if (uploadError) {
+      return NextResponse.json(
+        { error: formatStorageUploadError(uploadError.message, 'csv') },
+        { status: 400 }
+      )
+    }
+    if (upload) {
       const { data: urlData } = supabase.storage
-        .from('uploads')
+        .from(UPLOADS_BUCKET)
         .getPublicUrl(upload.path)
       audience_csv_url = urlData.publicUrl
     }
@@ -81,19 +96,32 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  let image_url: string | null = null
-  if (imageFile) {
-    const { data: upload, error: uploadError } = await supabase.storage
-      .from('uploads')
-      .upload(`images/${Date.now()}_${imageFile.name}`, imageFile, {
-        contentType: imageFile.type,
-      })
+  const hasImageFile = Boolean(imageFile && imageFile.size > 0)
+  if (hasImageFile && imageUrlRaw.length > 0) {
+    return NextResponse.json(
+      {
+        error:
+          'Provide either an image file or an image URL, not both.',
+      },
+      { status: 400 }
+    )
+  }
 
-    if (!uploadError && upload) {
-      const { data: urlData } = supabase.storage
-        .from('uploads')
-        .getPublicUrl(upload.path)
-      image_url = urlData.publicUrl
+  let image_url: string | null = null
+  if (imageUrlRaw.length > 0) {
+    try {
+      image_url = parsePublicHttpsImageUrl(imageUrlRaw)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Invalid image URL'
+      return NextResponse.json({ error: message }, { status: 400 })
+    }
+  } else if (hasImageFile && imageFile) {
+    try {
+      image_url = await uploadAnnouncementImageFile(supabase, imageFile)
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : 'Failed to upload announcement image'
+      return NextResponse.json({ error: message }, { status: 400 })
     }
   }
 
