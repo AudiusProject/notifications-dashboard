@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Upload, LinkIcon, ImageIcon, Send } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Upload, LinkIcon, ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -11,25 +11,41 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { NotificationPreview } from '@/components/notification-preview'
 
+import { useAnnouncementDraft } from './announcement-draft-context'
+
 const HEADING_MAX = 40
 const BODY_MAX = 120
 
+const messages = {
+  title: 'Create Announcement',
+  subtitle: 'Step 1: Compose content, audience, and targeting',
+  continue: 'Continue to review',
+  saving: 'Saving…',
+  saveDraft: 'Save Draft',
+}
+
 export function AnnouncementForm() {
   const router = useRouter()
-  const [internalLabel, setInternalLabel] = useState('')
-  const [heading, setHeading] = useState('')
-  const [body, setBody] = useState('')
-  const [ctaLink, setCtaLink] = useState('')
-  const [csvFile, setCsvFile] = useState<File | null>(null)
-  const [imageSource, setImageSource] = useState<'upload' | 'url'>('upload')
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imageUrlInput, setImageUrlInput] = useState('')
+  const {
+    internalLabel,
+    heading,
+    body,
+    ctaLink,
+    csvFile,
+    imageSource,
+    imageFile,
+    imageUrlInput,
+    setDraft,
+  } = useAnnouncementDraft()
+
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const canSaveDraft = internalLabel.trim() && heading.trim() && body.trim()
-  const canSend = canSaveDraft && csvFile
+  const canSaveDraft = Boolean(
+    internalLabel.trim() && heading.trim() && body.trim()
+  )
+  const canContinueToReview = Boolean(canSaveDraft && csvFile)
 
   useEffect(() => {
     if (!imageFile) {
@@ -48,108 +64,54 @@ export function AnnouncementForm() {
       ? (imageUrlInput.trim() || null)
       : filePreviewUrl
 
-  const handleSaveDraft = useCallback(
-    async () => {
-      setSaving(true)
-      setError(null)
-      try {
-        const formData = new FormData()
-        formData.append('internal_label', internalLabel)
-        formData.append('heading', heading)
-        formData.append('body', body)
-        formData.append('cta_link', ctaLink)
-        formData.append('status', 'draft')
-        formData.append('created_by', 'Ciara')
-        if (csvFile) formData.append('csv', csvFile)
-        if (imageSource === 'upload' && imageFile) {
-          formData.append('image', imageFile)
-        }
-        if (imageSource === 'url' && imageUrlInput.trim()) {
-          formData.append('image_url', imageUrlInput.trim())
-        }
-
-        const res = await fetch('/api/announcements', { method: 'POST', body: formData })
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          throw new Error(
-            typeof data.error === 'string' ? data.error : 'Failed to save'
-          )
-        }
-        router.push('/announcements')
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to save')
-      } finally {
-        setSaving(false)
+  const handleSaveDraft = useCallback(async () => {
+    setSaving(true)
+    setError(null)
+    try {
+      const formData = new FormData()
+      formData.append('internal_label', internalLabel)
+      formData.append('heading', heading)
+      formData.append('body', body)
+      formData.append('cta_link', ctaLink)
+      formData.append('status', 'draft')
+      formData.append('created_by', 'Ciara')
+      if (csvFile) formData.append('csv', csvFile)
+      if (imageSource === 'upload' && imageFile) {
+        formData.append('image', imageFile)
       }
-    },
-    [
-      internalLabel,
-      heading,
-      body,
-      ctaLink,
-      csvFile,
-      imageSource,
-      imageFile,
-      imageUrlInput,
-      router,
-    ]
-  )
-
-  const handleSend = useCallback(
-    async () => {
-      if (!csvFile) return
-      setSaving(true)
-      setError(null)
-      try {
-        const formData = new FormData()
-        formData.append('internal_label', internalLabel)
-        formData.append('heading', heading)
-        formData.append('body', body)
-        formData.append('cta_link', ctaLink)
-        formData.append('status', 'ready')
-        formData.append('created_by', 'Ciara')
-        formData.append('csv', csvFile)
-        if (imageSource === 'upload' && imageFile) {
-          formData.append('image', imageFile)
-        }
-        if (imageSource === 'url' && imageUrlInput.trim()) {
-          formData.append('image_url', imageUrlInput.trim())
-        }
-
-        const createRes = await fetch('/api/announcements', { method: 'POST', body: formData })
-        if (!createRes.ok) {
-          const data = await createRes.json().catch(() => ({}))
-          throw new Error(
-            typeof data.error === 'string' ? data.error : 'Failed to save'
-          )
-        }
-        const { id } = await createRes.json()
-
-        const sendRes = await fetch(`/api/announcements/${id}/send`, { method: 'POST' })
-        if (!sendRes.ok) {
-          const data = await sendRes.json().catch(() => ({}))
-          throw new Error(data.error ?? `Send failed (${sendRes.status})`)
-        }
-
-        router.push(`/announcements/${id}`)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Send failed')
-      } finally {
-        setSaving(false)
+      if (imageSource === 'url' && imageUrlInput.trim()) {
+        formData.append('image_url', imageUrlInput.trim())
       }
-    },
-    [
-      internalLabel,
-      heading,
-      body,
-      ctaLink,
-      csvFile,
-      imageSource,
-      imageFile,
-      imageUrlInput,
-      router,
-    ]
-  )
+
+      const res = await fetch('/api/announcements', { method: 'POST', body: formData })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(
+          typeof data.error === 'string' ? data.error : 'Failed to save'
+        )
+      }
+      router.push('/announcements')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }, [
+    internalLabel,
+    heading,
+    body,
+    ctaLink,
+    csvFile,
+    imageSource,
+    imageFile,
+    imageUrlInput,
+    router,
+  ])
+
+  const handleContinueToReview = useCallback(() => {
+    if (!canContinueToReview) return
+    router.push('/announcements/new/review')
+  }, [canContinueToReview, router])
 
   return (
     <div className="p-10">
@@ -159,10 +121,10 @@ export function AnnouncementForm() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Create Announcement
+            {messages.title}
           </h1>
           <p className="text-sm text-neutral-500">
-            Compose content, set audience, and send
+            {messages.subtitle}
           </p>
         </div>
       </div>
@@ -181,7 +143,7 @@ export function AnnouncementForm() {
                   id="label"
                   placeholder="Spring engagement push"
                   value={internalLabel}
-                  onChange={(e) => setInternalLabel(e.target.value)}
+                  onChange={(e) => setDraft({ internalLabel: e.target.value })}
                 />
                 <p className="text-xs text-neutral-500">
                   Not shown to end users.
@@ -200,7 +162,7 @@ export function AnnouncementForm() {
                   placeholder="New music is waiting for you 🎵"
                   maxLength={HEADING_MAX}
                   value={heading}
-                  onChange={(e) => setHeading(e.target.value)}
+                  onChange={(e) => setDraft({ heading: e.target.value })}
                 />
               </div>
 
@@ -217,7 +179,7 @@ export function AnnouncementForm() {
                   maxLength={BODY_MAX}
                   rows={4}
                   value={body}
-                  onChange={(e) => setBody(e.target.value)}
+                  onChange={(e) => setDraft({ body: e.target.value })}
                 />
               </div>
 
@@ -234,8 +196,7 @@ export function AnnouncementForm() {
                     variant={imageSource === 'upload' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => {
-                      setImageSource('upload')
-                      setImageUrlInput('')
+                      setDraft({ imageSource: 'upload', imageUrlInput: '' })
                     }}
                   >
                     Upload file
@@ -245,8 +206,7 @@ export function AnnouncementForm() {
                     variant={imageSource === 'url' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => {
-                      setImageSource('url')
-                      setImageFile(null)
+                      setDraft({ imageSource: 'url', imageFile: null })
                     }}
                   >
                     Image URL
@@ -266,7 +226,7 @@ export function AnnouncementForm() {
                       accept="image/jpeg,image/png,image/gif,image/webp"
                       className="hidden"
                       onChange={(e) =>
-                        setImageFile(e.target.files?.[0] ?? null)
+                        setDraft({ imageFile: e.target.files?.[0] ?? null })
                       }
                     />
                   </label>
@@ -277,7 +237,7 @@ export function AnnouncementForm() {
                       placeholder="https://cdn.example.com/announcement.png"
                       className="font-mono text-sm"
                       value={imageUrlInput}
-                      onChange={(e) => setImageUrlInput(e.target.value)}
+                      onChange={(e) => setDraft({ imageUrlInput: e.target.value })}
                     />
                     <p className="text-xs text-neutral-500">
                       Must be publicly reachable over HTTPS (no auth).
@@ -295,7 +255,7 @@ export function AnnouncementForm() {
                     placeholder="app://discover"
                     className="pl-10"
                     value={ctaLink}
-                    onChange={(e) => setCtaLink(e.target.value)}
+                    onChange={(e) => setDraft({ ctaLink: e.target.value })}
                   />
                 </div>
               </div>
@@ -325,7 +285,9 @@ export function AnnouncementForm() {
                   type="file"
                   accept=".csv,text/csv"
                   className="hidden"
-                  onChange={(e) => setCsvFile(e.target.files?.[0] ?? null)}
+                  onChange={(e) =>
+                    setDraft({ csvFile: e.target.files?.[0] ?? null })
+                  }
                 />
               </label>
             </CardContent>
@@ -342,14 +304,14 @@ export function AnnouncementForm() {
                 disabled={saving || !canSaveDraft}
                 onClick={handleSaveDraft}
               >
-                Save Draft
+                {saving ? messages.saving : messages.saveDraft}
               </Button>
               <Button
-                disabled={!canSend || saving}
-                onClick={handleSend}
+                disabled={!canContinueToReview || saving}
+                onClick={handleContinueToReview}
               >
-                <Send className="mr-2 size-4" />
-                {saving ? 'Sending…' : 'Send'}
+                {messages.continue}
+                <ArrowRight className="ml-2 size-4" />
               </Button>
             </div>
           </div>

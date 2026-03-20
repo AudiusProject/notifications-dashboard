@@ -15,7 +15,8 @@ const messages = {
   bannerLabel: 'Banner',
   expandedLabel: 'Expanded',
   imageError: 'Could not load image',
-  footnote: 'Preview is approximate. Layout varies by OS version.',
+  footnote:
+    'Preview is approximate. Layout may vary slightly by device OS.',
 }
 
 function PreviewImage({
