@@ -185,7 +185,6 @@ export function AnnouncementReview() {
       formData.append('body', body)
       formData.append('cta_link', ctaLink)
       formData.append('status', 'draft')
-      formData.append('created_by', 'Ciara')
       if (csvFile) formData.append('csv', csvFile)
       if (imageSource === 'upload' && imageFile) {
         formData.append('image', imageFile)
@@ -230,7 +229,6 @@ export function AnnouncementReview() {
       formData.append('body', body)
       formData.append('cta_link', ctaLink)
       formData.append('status', 'ready')
-      formData.append('created_by', 'Ciara')
       formData.append('csv', csvFile)
       if (imageSource === 'upload' && imageFile) {
         formData.append('image', imageFile)

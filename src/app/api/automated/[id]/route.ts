@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionFromRequest } from '@/lib/auth'
+import { displayNameFromSession, getSessionFromRequest } from '@/lib/auth'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { AutomatedTrigger, TriggerPerformance } from '@/lib/supabase/types'
 
@@ -36,6 +36,8 @@ export async function GET(request: NextRequest, { params }: Context) {
 export async function PATCH(request: NextRequest, { params }: Context) {
   const unauth = await requireSession(request)
   if (unauth) return unauth
+  const session = await getSessionFromRequest(request)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
   const supabase = getSupabaseAdmin()
   const updates = await request.json()
@@ -46,7 +48,7 @@ export async function PATCH(request: NextRequest, { params }: Context) {
     if (key in updates) filtered[key] = updates[key]
   }
   filtered.updated_at = new Date().toISOString()
-  filtered.last_updated_by = updates.updated_by ?? 'Ciara'
+  filtered.last_updated_by = displayNameFromSession(session)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)

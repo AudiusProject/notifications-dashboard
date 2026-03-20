@@ -74,7 +74,6 @@ export function AnnouncementForm() {
       formData.append('body', body)
       formData.append('cta_link', ctaLink)
       formData.append('status', 'draft')
-      formData.append('created_by', 'Ciara')
       if (csvFile) formData.append('csv', csvFile)
       if (imageSource === 'upload' && imageFile) {
         formData.append('image', imageFile)

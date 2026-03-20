@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const sessionToken = await createSessionToken(email)
+  const sessionToken = await createSessionToken(email, payload.name)
   const cookieOptions = getSessionCookieOptions()
   const res = NextResponse.json({ email, name: payload.name }, { status: 201 })
   res.cookies.set(getSessionCookieName(), sessionToken, cookieOptions)

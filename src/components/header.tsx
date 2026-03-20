@@ -8,12 +8,19 @@ import { Button } from '@/components/ui/button'
 export function Header() {
   const router = useRouter()
   const [email, setEmail] = useState<string | null>(null)
+  const [name, setName] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/auth/session', { credentials: 'include' })
       .then((res) => res.json())
-      .then((data) => setEmail(data.email ?? null))
-      .catch(() => setEmail(null))
+      .then((data: { email?: string | null; name?: string | null }) => {
+        setEmail(data.email ?? null)
+        setName(data.name ?? null)
+      })
+      .catch(() => {
+        setEmail(null)
+        setName(null)
+      })
   }, [])
 
   const handleLogout = async () => {
@@ -22,17 +29,29 @@ export function Header() {
     router.refresh()
   }
 
-  const initials = email
-    ? email
-        .split('@')[0]
-        ?.slice(0, 2)
-        .toUpperCase() ?? '?'
-    : '…'
+  const initials =
+    name != null && name.length > 0
+      ? name
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((p) => p[0]?.toUpperCase() ?? '')
+          .join('') || '?'
+      : email
+        ? (email.split('@')[0]?.slice(0, 2).toUpperCase() ?? '?')
+        : '…'
+
+  const signedInLabel =
+    name != null && name.length > 0
+      ? `Signed in as ${name}`
+      : email != null
+        ? `Signed in as ${email}`
+        : '…'
 
   return (
     <header className="flex h-16 items-center justify-end gap-4 border-b bg-white px-8">
       <span className="text-sm font-medium text-neutral-900">
-        {email ? `Signed in as ${email}` : '…'}
+        {signedInLabel}
       </span>
       <Avatar className="size-8 border border-neutral-300">
         <AvatarFallback className="bg-neutral-200 text-xs font-semibold">

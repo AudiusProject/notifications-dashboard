@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionFromRequest } from '@/lib/auth'
+import { displayNameFromSession, getSessionFromRequest } from '@/lib/auth'
 import {
   parsePublicHttpsImageUrl,
   uploadAnnouncementImageFile,
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   const body = formData.get('body') as string
   const cta_link = (formData.get('cta_link') as string) || null
   const status = (formData.get('status') as string) || 'draft'
-  const created_by = (formData.get('created_by') as string) || 'Unknown'
+  const created_by = displayNameFromSession(session)
 
   const csvFile = formData.get('csv') as File | null
   const imageFile = formData.get('image') as File | null
