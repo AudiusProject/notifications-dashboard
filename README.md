@@ -39,6 +39,9 @@ Open [http://localhost:3000](http://localhost:3000). Set env in `.env.local` (se
    | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (server-only) |
    | `NOTIFICATIONS_SERVICE_URL` | Yes | Notifications service URL, e.g. `https://notifications.audius.engineering` (no trailing slash) |
    | `ANNOUNCEMENT_SEND_SECRET` | If auth enabled | Same value as `ANNOUNCEMENT_SEND_SECRET` on the notifications service |
+   | `AMPLITUDE_API_KEY` | No | Enables server-side staff action analytics (see **Dashboard analytics** below) |
+   | `AMPLITUDE_SECRET_KEY` | For engagement cron | With `AMPLITUDE_API_KEY`, used for Amplitude Dashboard REST API (read metrics) |
+   | `CRON_SECRET` | For Vercel Cron | Secures `GET /api/cron/sync-amplitude-engagement` (`Authorization: Bearer …`) |
 
    Add them for **Production** (and Preview if you want the same behavior in PR previews).
 
@@ -52,6 +55,48 @@ Open [http://localhost:3000](http://localhost:3000). Set env in `.env.local` (se
      1. Supabase dashboard → **Storage** → **New bucket**
      2. Name: **`uploads`**
      3. For rich push images, objects must be reachable at a public `https://` URL — either turn on **Public bucket**, or add policies so **public read** applies to `images/announcements/*` (and your app can upload with the service role key used server-side).
+
+## Engagement stats (planned)
+
+Columns like **open rate** and **CTA click rate** are intended to be filled after send (e.g. from **Amplitude**). For Audius, **tap on the push = opening the CTA** — treat as **one metric** when instrumenting and when backfilling; the UI may show both labels for now but they can share the same underlying event/count.
+
+**Amplitude join key:** On send, the dashboard passes Supabase `announcements.id` as **`dashboard_announcement_id`** in the notifications service / push **payload** (snake_case JSON). Clients should send **Amplitude** event properties as **`dashboardAnnouncementId`** (camelCase) so they match other metrics (`link_to`, `kind`, etc.). The engagement cron sums both `dashboardAnnouncementId` and legacy `dashboard_announcement_id` on those events so older data still counts.
+
+### Dashboard analytics (server)
+
+Set **`AMPLITUDE_API_KEY`** so API routes send staff actions to Amplitude via the [HTTP API](https://www.docs.developers.amplitude.com/analytics/apis/http-v2-api/). **`user_id`** is the staff member’s Google **email** (`@audius.co` / `@audius.org`). Events are scheduled with Next.js `after()` so responses are not blocked.
+
+| Event | When | Key properties |
+|-------|------|----------------|
+| `Notifications Dashboard: Log In` | Successful Google sign-in | `auth_provider` |
+| `Notifications Dashboard: Announcement Created` | `POST /api/announcements` | `dashboardAnnouncementId`, `status`, `audience_size`, `has_image`, `has_cta_link`, … |
+| `Notifications Dashboard: Announcement Updated` | `PATCH /api/announcements/[id]` | `dashboardAnnouncementId`, `updated_fields`, `updated_field_count` |
+| `Notifications Dashboard: Announcement Deleted` | `DELETE /api/announcements/[id]` | `dashboardAnnouncementId` |
+| `Notifications Dashboard: Announcement Send Success` | Send completed | `dashboardAnnouncementId`, `recipient_count`, `sent_count` |
+| `Notifications Dashboard: Announcement Send Failure` | Send errored | `dashboardAnnouncementId`, `recipient_count`, `error_message` |
+| `Notifications Dashboard: Automated Trigger Updated` | `PATCH /api/automated/[id]` | `automated_trigger_id`, `updated_fields`, … |
+
+If `AMPLITUDE_API_KEY` is unset, tracking is a no-op.
+
+### Amplitude engagement sync (Vercel Cron)
+
+Hourly cron (`vercel.json`) calls **`GET /api/cron/sync-amplitude-engagement`**, which:
+
+1. Authenticates with **`Authorization: Bearer ${CRON_SECRET}`** (set `CRON_SECRET` in Vercel — [securing cron jobs](https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs)).
+2. Uses **Amplitude Dashboard REST API** (`/api/2/events/segmentation`) with **`AMPLITUDE_API_KEY` + `AMPLITUDE_SECRET_KEY`** (Basic auth) to count:
+   - **`Notifications: Open Push Notification`** with `dashboardAnnouncementId` or legacy `dashboard_announcement_id` → `funnel_opened`
+   - **`Notifications: Clicked Tile`** with `kind` = `announcement` and `dashboardAnnouncementId` or legacy `dashboard_announcement_id` → `funnel_clicked` / `cta_clicks`
+3. Writes **`open_rate`** / **`cta_click_rate`** vs **`funnel_sent`**, and **`amplitude_engagement_synced_at`**.
+
+**Supabase:** run the migration for `amplitude_engagement_synced_at` if your table predates it (see `schema.sql` comment).
+
+**Schedule:** edit `vercel.json` (`schedule` is cron syntax; default is hourly `0 * * * *`).
+
+**UI:** Sent announcement detail and the announcements table show **last synced** time; use **Sync metrics** on the detail page to run the same job immediately (requires signed-in staff session).
+
+**Troubleshooting (400 “Invalid event property”):** Amplitude’s segmentation API only allows filtering on an event property **after at least one real event** has been ingested with that property for that event type. Defining the property in the UI/schema is not enough. Send a test **Notifications: Open Push Notification** (or tile click) that includes `dashboardAnnouncementId` / `dashboard_announcement_id`, or rely on `dashboard_announcement_id` until mobile/web traffic includes the new key. The sync job skips unknown properties and still sums the other key.
+
+**Disable rate** can come from **Identity** (notification settings) / SNS endpoint churn when you wire it up.
 
 ## Env reference
 

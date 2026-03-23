@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { Announcement } from '@/lib/supabase/types'
+import { DashboardAnalyticsEvents } from '@/lib/analytics/events'
+import { scheduleDashboardAnalytics, truncateForAnalytics } from '@/lib/analytics/track'
 
 type Context = { params: Promise<{ id: string }> }
 
@@ -61,7 +63,6 @@ export async function POST(request: NextRequest, { params }: Context) {
     .eq('id', id)
 
   let sentCount = 0
-  let failed = false
 
   try {
     for (let i = 0; i < userIds.length; i += SEND_BATCH_SIZE) {
@@ -76,11 +77,13 @@ export async function POST(request: NextRequest, { params }: Context) {
               }
             : {}),
         },
+        // dashboard_announcement_id = Supabase announcements.id (push + Amplitude joins).
         body: JSON.stringify({
           title: announcement.heading,
           body: announcement.body,
           image_url: announcement.image_url ?? undefined,
           route: announcement.cta_link ?? undefined,
+          dashboard_announcement_id: id,
           userIds: batch,
         }),
       })
@@ -106,7 +109,6 @@ export async function POST(request: NextRequest, { params }: Context) {
       })
       .eq('id', id)
   } catch (err) {
-    failed = true
     await (supabase as any)
       .from('announcements')
       .update({
@@ -115,12 +117,27 @@ export async function POST(request: NextRequest, { params }: Context) {
       })
       .eq('id', id)
 
+    const message = err instanceof Error ? err.message : 'Send failed'
     console.error('Send announcement failed:', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Send failed' },
-      { status: 500 }
+
+    scheduleDashboardAnalytics(
+      session.email,
+      DashboardAnalyticsEvents.ANNOUNCEMENT_SEND_FAILURE,
+      {
+        dashboardAnnouncementId: id,
+        recipient_count: userIds.length,
+        error_message: truncateForAnalytics(message),
+      }
     )
+
+    return NextResponse.json({ error: message }, { status: 500 })
   }
+
+  scheduleDashboardAnalytics(session.email, DashboardAnalyticsEvents.ANNOUNCEMENT_SEND_SUCCESS, {
+    dashboardAnnouncementId: id,
+    recipient_count: userIds.length,
+    sent_count: sentCount,
+  })
 
   return NextResponse.json({
     ok: true,

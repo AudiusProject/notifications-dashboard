@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { Announcement } from '@/lib/supabase/types'
+import { formatEngagementSyncedAt } from '@/lib/utils'
 
 const statusVariant: Record<
   Announcement['status'],
@@ -92,6 +93,7 @@ export function AnnouncementsTable({ announcements }: Props) {
               <TableHead>Date Sent</TableHead>
               <TableHead className="text-right">Audience</TableHead>
               <TableHead className="text-right">Open Rate</TableHead>
+              <TableHead className="min-w-[120px] text-right">Metrics sync</TableHead>
               <TableHead className="text-right">CTA %</TableHead>
               <TableHead className="text-right">Ret. Uplift</TableHead>
               <TableHead className="text-right">Disable %</TableHead>
@@ -124,6 +126,13 @@ export function AnnouncementsTable({ announcements }: Props) {
                 </TableCell>
                 <TableCell className="text-right">
                   {formatPct(a.open_rate)}
+                </TableCell>
+                <TableCell className="text-right text-xs text-neutral-500">
+                  {a.status === 'sent'
+                    ? formatEngagementSyncedAt(
+                        a.amplitude_engagement_synced_at
+                      )
+                    : '—'}
                 </TableCell>
                 <TableCell className="text-right">
                   {formatPct(a.cta_click_rate)}

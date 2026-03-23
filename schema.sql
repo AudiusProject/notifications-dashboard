@@ -18,6 +18,7 @@ CREATE TABLE announcements (
   sent_at TIMESTAMPTZ,
 
   -- Delivery stats (populated post-send via SNS / Amplitude)
+  -- open_* vs cta_*: product treats tap-as-one-action; columns may mirror the same counts.
   recipients_reached INTEGER,
   delivery_rate NUMERIC(5,2),
   open_rate NUMERIC(5,2),
@@ -40,6 +41,9 @@ CREATE TABLE announcements (
   funnel_delivered INTEGER,
   funnel_opened INTEGER,
   funnel_clicked INTEGER,
+
+  -- Last successful Amplitude Dashboard API sync (Vercel cron)
+  amplitude_engagement_synced_at TIMESTAMPTZ,
 
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -102,6 +106,9 @@ CREATE TABLE trigger_performance (
 CREATE INDEX idx_trigger_performance_trigger ON trigger_performance(trigger_id);
 CREATE INDEX idx_announcements_status ON announcements(status);
 CREATE INDEX idx_announcements_created ON announcements(created_at DESC);
+
+-- Existing projects: add engagement sync column if missing
+-- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS amplitude_engagement_synced_at TIMESTAMPTZ;
 
 -- Enable RLS (service role bypasses)
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;

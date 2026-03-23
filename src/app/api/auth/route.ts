@@ -6,6 +6,8 @@ import {
   getSessionCookieName,
   getSessionCookieOptions,
 } from '@/lib/auth'
+import { DashboardAnalyticsEvents } from '@/lib/analytics/events'
+import { scheduleDashboardAnalytics } from '@/lib/analytics/track'
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 
@@ -58,5 +60,10 @@ export async function POST(request: NextRequest) {
   const cookieOptions = getSessionCookieOptions()
   const res = NextResponse.json({ email, name: payload.name }, { status: 201 })
   res.cookies.set(getSessionCookieName(), sessionToken, cookieOptions)
+
+  scheduleDashboardAnalytics(email, DashboardAnalyticsEvents.LOGIN, {
+    auth_provider: 'google',
+  })
+
   return res
 }

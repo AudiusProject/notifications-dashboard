@@ -1,4 +1,8 @@
 {
-  "framework": "nextjs",
-  "buildCommand": "npm run build"
+  "crons": [
+    {
+      "path": "/api/cron/sync-amplitude-engagement",
+      "schedule": "0 * * * *"
+    }
+  ]
 }

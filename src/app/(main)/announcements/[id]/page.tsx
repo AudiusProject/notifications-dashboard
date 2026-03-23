@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatCard } from '@/components/stat-card'
 import { DeliveryFunnel } from '@/components/delivery-funnel'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { EngagementSyncControls } from './engagement-sync-controls'
 import { SendAnnouncementButton } from './send-button'
 import type { Announcement } from '@/lib/supabase/types'
 
@@ -91,6 +92,16 @@ export default async function AnnouncementDetailPage({ params }: Props) {
       {/* Stat Cards */}
       {a.status === 'sent' ? (
         <>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+            <p className="text-sm text-neutral-600">
+              Engagement metrics are synced from Amplitude (hourly cron or manual
+              refresh).
+            </p>
+            <EngagementSyncControls
+              announcementId={a.id}
+              syncedAt={a.amplitude_engagement_synced_at}
+            />
+          </div>
           <div className="mb-8 grid grid-cols-4 gap-4">
             <StatCard
               label="Recipients Reached"

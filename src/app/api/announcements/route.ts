@@ -10,6 +10,8 @@ import {
   formatStorageUploadError,
 } from '@/lib/supabaseStorage'
 import type { Announcement } from '@/lib/supabase/types'
+import { DashboardAnalyticsEvents } from '@/lib/analytics/events'
+import { scheduleDashboardAnalytics } from '@/lib/analytics/track'
 
 export async function GET(request: NextRequest) {
   const session = await getSessionFromRequest(request)
@@ -162,6 +164,17 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+  }
+
+  if (data?.id) {
+    scheduleDashboardAnalytics(session.email, DashboardAnalyticsEvents.ANNOUNCEMENT_CREATED, {
+      dashboardAnnouncementId: data.id as string,
+      status,
+      audience_size,
+      invalid_rows,
+      has_image: Boolean(image_url),
+      has_cta_link: Boolean(cta_link),
+    })
   }
 
   return NextResponse.json(data, { status: 201 })

@@ -34,6 +34,9 @@ export type Announcement = {
   funnel_opened: number | null
   funnel_clicked: number | null
 
+  /** Set by Vercel cron + Amplitude Dashboard API */
+  amplitude_engagement_synced_at: string | null
+
   created_at: string
   updated_at: string
 }
