@@ -47,7 +47,7 @@ export async function PATCH(request: NextRequest, { params }: Context) {
 
   const updatedFields = Object.keys(updates).filter((k) => k !== 'updated_at')
   scheduleDashboardAnalytics(session.email, DashboardAnalyticsEvents.ANNOUNCEMENT_UPDATED, {
-    dashboardAnnouncementId: id,
+    notificationCampaignId: id,
     updated_fields: updatedFields.slice(0, 40),
     updated_field_count: updatedFields.length,
   })
@@ -66,7 +66,7 @@ export async function DELETE(request: NextRequest, { params }: Context) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   scheduleDashboardAnalytics(session.email, DashboardAnalyticsEvents.ANNOUNCEMENT_DELETED, {
-    dashboardAnnouncementId: id,
+    notificationCampaignId: id,
   })
 
   return NextResponse.json({ ok: true })

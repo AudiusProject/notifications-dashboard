@@ -77,13 +77,13 @@ export async function POST(request: NextRequest, { params }: Context) {
               }
             : {}),
         },
-        // dashboard_announcement_id = Supabase announcements.id (push + Amplitude joins).
+        // notification_campaign_id = Supabase announcements.id (push + metrics).
         body: JSON.stringify({
           title: announcement.heading,
           body: announcement.body,
           image_url: announcement.image_url ?? undefined,
           route: announcement.cta_link ?? undefined,
-          dashboard_announcement_id: id,
+          notification_campaign_id: id,
           userIds: batch,
         }),
       })
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest, { params }: Context) {
       session.email,
       DashboardAnalyticsEvents.ANNOUNCEMENT_SEND_FAILURE,
       {
-        dashboardAnnouncementId: id,
+        notificationCampaignId: id,
         recipient_count: userIds.length,
         error_message: truncateForAnalytics(message),
       }
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest, { params }: Context) {
   }
 
   scheduleDashboardAnalytics(session.email, DashboardAnalyticsEvents.ANNOUNCEMENT_SEND_SUCCESS, {
-    dashboardAnnouncementId: id,
+    notificationCampaignId: id,
     recipient_count: userIds.length,
     sent_count: sentCount,
   })

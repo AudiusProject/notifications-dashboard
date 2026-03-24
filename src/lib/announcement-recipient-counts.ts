@@ -40,3 +40,20 @@ export async function fetchRecipientCountByAnnouncementId(
 
   return counts
 }
+
+/** Exact row count for one announcement (`announcement_recipients`, head-only). */
+export async function fetchRecipientCountForAnnouncement(
+  supabase: SupabaseClient,
+  announcementId: string
+): Promise<number> {
+  const { count, error } = await supabase
+    .from('announcement_recipients')
+    .select('*', { count: 'exact', head: true })
+    .eq('announcement_id', announcementId)
+
+  if (error) {
+    console.error('announcement_recipients count:', error.message)
+    return 0
+  }
+  return count ?? 0
+}

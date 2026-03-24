@@ -1,3 +1,8 @@
+import { fetchRecipientCountForAnnouncement } from '@/lib/announcement-recipient-counts'
+import {
+  fetchNotificationCampaignPushOpenCount,
+  notificationCampaignOpenMetricsConfigured,
+} from '@/lib/discovery/notificationCampaignPushOpens'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 import {
@@ -12,11 +17,11 @@ import {
 /**
  * Amplitude only accepts segmentation filters for properties that have appeared on at least one
  * ingested event for that event type — UI/schema alone is not enough (API returns 400).
- * Order: snake_case first (historical sends), then camelCase (new clients).
+ * Order: snake_case first, then camelCase.
  */
-const DASHBOARD_ID_PROPS = [
-  'dashboard_announcement_id',
-  'dashboardAnnouncementId',
+const CAMPAIGN_ID_PROPS = [
+  'notification_campaign_id',
+  'notificationCampaignId',
 ] as const
 
 function isUnknownEventPropertySegmentationError(message: string): boolean {
@@ -54,7 +59,7 @@ export async function fetchEngagementCountsForAnnouncement(
     extraFilters?: AmplitudeEventFilter[]
   }) => {
     let sum = 0
-    for (const subprop_key of DASHBOARD_ID_PROPS) {
+    for (const subprop_key of CAMPAIGN_ID_PROPS) {
       const idFilter = {
         subprop_type: 'event' as const,
         subprop_key,
@@ -108,25 +113,23 @@ export async function fetchEngagementCountsForAnnouncement(
   }
 }
 
-export function computeRates(params: {
-  funnelSent: number | null
-  pushOpens: number
-  tileClicks: number
-}): {
-  open_rate: number | null
-  cta_click_rate: number | null
-} {
-  const denom = params.funnelSent ?? 0
-  if (denom <= 0) {
-    return { open_rate: null, cta_click_rate: null }
+/** Percent 0–100 (one decimal), capped; denominator = announcement_recipients rows. */
+export function computeRatePercent(
+  recipientCount: number,
+  eventCount: number
+): number | null {
+  if (recipientCount <= 0 || !Number.isFinite(eventCount)) {
+    return null
   }
-  const openRate = Math.round((params.pushOpens / denom) * 10000) / 100
-  const ctaRate = Math.round((params.tileClicks / denom) * 10000) / 100
-  return { open_rate: openRate, cta_click_rate: ctaRate }
+  const raw = (eventCount / recipientCount) * 100
+  const rounded = Math.round(raw * 100) / 100
+  return Math.min(100, rounded)
 }
 
 /**
- * Fetches Amplitude counts and updates `announcements` for one row.
+ * Syncs engagement into `announcements`: push opens from Discovery when configured,
+ * else from Amplitude; tile/CTA metrics from Amplitude when keys are set.
+ * Open rate denominator = `announcement_recipients` count (not `funnel_sent`).
  * Used by Vercel cron and manual "Sync metrics".
  */
 export async function syncAnnouncementEngagementById(
@@ -134,21 +137,23 @@ export async function syncAnnouncementEngagementById(
 ): Promise<
   { ok: true; syncedAt: string } | { ok: false; error: string }
 > {
-  if (
-    !process.env.AMPLITUDE_API_KEY?.trim() ||
-    !process.env.AMPLITUDE_SECRET_KEY?.trim()
-  ) {
+  const hasAmplitude =
+    Boolean(process.env.AMPLITUDE_API_KEY?.trim()) &&
+    Boolean(process.env.AMPLITUDE_SECRET_KEY?.trim())
+  const hasDiscoveryOpens = notificationCampaignOpenMetricsConfigured()
+
+  if (!hasAmplitude && !hasDiscoveryOpens) {
     return {
       ok: false,
       error:
-        'Amplitude read credentials missing: set AMPLITUDE_API_KEY and AMPLITUDE_SECRET_KEY',
+        'Metrics sync not configured: set AUDIUS_API_URL + NOTIFICATION_CAMPAIGN_OPEN_METRICS_SECRET for first-party opens, and/or AMPLITUDE_API_KEY + AMPLITUDE_SECRET_KEY for tile/CTA analytics',
     }
   }
 
   const supabase = getSupabaseAdmin()
   const { data: row, error: fetchErr } = await supabase
     .from('announcements')
-    .select('id, status, sent_at, funnel_sent')
+    .select('id, status, sent_at')
     .eq('id', announcementId)
     .single()
 
@@ -160,7 +165,6 @@ export async function syncAnnouncementEngagementById(
     id: string
     status: string
     sent_at: string | null
-    funnel_sent: number | null
   }
 
   if (r.status !== 'sent' || !r.sent_at) {
@@ -171,30 +175,47 @@ export async function syncAnnouncementEngagementById(
   }
 
   try {
-    const counts = await fetchEngagementCountsForAnnouncement(
-      r.id,
-      r.sent_at
+    const recipientCount = await fetchRecipientCountForAnnouncement(
+      supabase,
+      r.id
     )
-    const rates = computeRates({
-      funnelSent: r.funnel_sent,
-      pushOpens: counts.pushOpens,
-      tileClicks: counts.tileClicks,
-    })
 
+    let pushOpens: number
+    let tileClicks: number | undefined
+
+    if (hasAmplitude) {
+      const counts = await fetchEngagementCountsForAnnouncement(r.id, r.sent_at)
+      tileClicks = counts.tileClicks
+      pushOpens = hasDiscoveryOpens
+        ? await fetchNotificationCampaignPushOpenCount(r.id)
+        : counts.pushOpens
+    } else {
+      pushOpens = await fetchNotificationCampaignPushOpenCount(r.id)
+    }
+
+    const openRate = computeRatePercent(recipientCount, pushOpens)
     const syncedAt = new Date().toISOString()
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase client not generated from schema
-    const { error: upErr } = await (supabase as any)
+    const updatePayload: Record<string, unknown> = {
+      funnel_opened: pushOpens,
+      unique_opens: pushOpens,
+      open_rate: openRate,
+      amplitude_engagement_synced_at: syncedAt,
+      updated_at: syncedAt,
+    }
+
+    if (hasAmplitude && tileClicks !== undefined) {
+      updatePayload.funnel_clicked = tileClicks
+      updatePayload.cta_clicks = tileClicks
+      updatePayload.cta_click_rate = computeRatePercent(
+        recipientCount,
+        tileClicks
+      )
+    }
+
+    const { error: upErr } = await supabase
       .from('announcements')
-      .update({
-        funnel_opened: counts.pushOpens,
-        funnel_clicked: counts.tileClicks,
-        cta_clicks: counts.tileClicks,
-        open_rate: rates.open_rate,
-        cta_click_rate: rates.cta_click_rate,
-        amplitude_engagement_synced_at: syncedAt,
-        updated_at: syncedAt,
-      })
+      .update(updatePayload)
       .eq('id', r.id)
 
     if (upErr) {

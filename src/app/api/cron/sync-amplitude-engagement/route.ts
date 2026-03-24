@@ -28,23 +28,28 @@ function verifyCron(request: Request): NextResponse | null {
 }
 
 /**
- * Vercel Cron: pulls Amplitude engagement metrics for sent announcements
- * and writes funnel_opened, funnel_clicked, rates, and amplitude_engagement_synced_at.
+ * Vercel Cron: syncs engagement for sent announcements into Supabase.
+ * Push opens: Discovery (`AUDIUS_API_URL` + `NOTIFICATION_CAMPAIGN_OPEN_METRICS_SECRET`) when set;
+ * otherwise Amplitude. Tile/CTA: Amplitude when keys are set.
  *
- * Requires `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY`, `CRON_SECRET`, Supabase admin.
+ * Requires `CRON_SECRET`, Supabase admin, and either Discovery open metrics and/or Amplitude keys.
  */
 export async function GET(request: Request) {
   const authError = verifyCron(request)
   if (authError) return authError
 
-  if (
-    !process.env.AMPLITUDE_API_KEY?.trim() ||
-    !process.env.AMPLITUDE_SECRET_KEY?.trim()
-  ) {
+  const hasAmplitude =
+    Boolean(process.env.AMPLITUDE_API_KEY?.trim()) &&
+    Boolean(process.env.AMPLITUDE_SECRET_KEY?.trim())
+  const hasDiscoveryOpens =
+    Boolean(process.env.AUDIUS_API_URL?.trim()) &&
+    Boolean(process.env.NOTIFICATION_CAMPAIGN_OPEN_METRICS_SECRET?.trim())
+
+  if (!hasAmplitude && !hasDiscoveryOpens) {
     return NextResponse.json(
       {
         error:
-          'Amplitude read credentials missing: set AMPLITUDE_API_KEY and AMPLITUDE_SECRET_KEY',
+          'Metrics sync not configured: set AUDIUS_API_URL + NOTIFICATION_CAMPAIGN_OPEN_METRICS_SECRET and/or AMPLITUDE_API_KEY + AMPLITUDE_SECRET_KEY',
       },
       { status: 503 }
     )

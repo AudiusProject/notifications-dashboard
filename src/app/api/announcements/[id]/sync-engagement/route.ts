@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 /**
- * Manual refresh: same Amplitude → Supabase logic as the Vercel cron, for one announcement.
+ * Manual refresh: same engagement sync as the Vercel cron (Discovery opens + optional Amplitude tile/CTA).
  */
 export async function POST(request: NextRequest, { params }: Context) {
   const session = await getSessionFromRequest(request)

@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
 
   if (data?.id) {
     scheduleDashboardAnalytics(session.email, DashboardAnalyticsEvents.ANNOUNCEMENT_CREATED, {
-      dashboardAnnouncementId: data.id as string,
+      notificationCampaignId: data.id as string,
       status,
       audience_size,
       invalid_rows,
