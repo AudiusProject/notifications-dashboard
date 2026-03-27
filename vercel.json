@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/sync-amplitude-engagement",
+      "path": "/api/cron/sync-engagement",
       "schedule": "0 * * * *"
     }
   ]

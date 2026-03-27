@@ -17,8 +17,8 @@ CREATE TABLE announcements (
   created_by TEXT NOT NULL,
   sent_at TIMESTAMPTZ,
 
-  -- Delivery stats (populated post-send via SNS / Amplitude)
-  -- open_* vs cta_*: product treats tap-as-one-action; columns may mirror the same counts.
+  -- Delivery stats (populated post-send via SNS; opens synced from Discovery)
+  -- open_* vs cta_*: separate columns for layout; CTA may be filled manually or future pipeline.
   recipients_reached INTEGER,
   delivery_rate NUMERIC(5,2),
   open_rate NUMERIC(5,2),
@@ -29,7 +29,7 @@ CREATE TABLE announcements (
   disable_rate NUMERIC(5,2),
   disables INTEGER,
 
-  -- Downstream actions (from Amplitude, 24h post-notification)
+  -- Downstream actions (optional / future pipeline)
   play_starts INTEGER,
   play_starts_vs_avg NUMERIC(5,2),
   avg_session_length_seconds INTEGER,
@@ -42,8 +42,8 @@ CREATE TABLE announcements (
   funnel_opened INTEGER,
   funnel_clicked INTEGER,
 
-  -- Last successful Amplitude Dashboard API sync (Vercel cron)
-  amplitude_engagement_synced_at TIMESTAMPTZ,
+  -- Last successful sync of open metrics from Discovery (Vercel cron or manual)
+  engagement_metrics_synced_at TIMESTAMPTZ,
 
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -107,8 +107,10 @@ CREATE INDEX idx_trigger_performance_trigger ON trigger_performance(trigger_id);
 CREATE INDEX idx_announcements_status ON announcements(status);
 CREATE INDEX idx_announcements_created ON announcements(created_at DESC);
 
--- Existing projects: add engagement sync column if missing
--- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS amplitude_engagement_synced_at TIMESTAMPTZ;
+-- Existing projects: add or rename engagement sync column
+-- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS engagement_metrics_synced_at TIMESTAMPTZ;
+-- If you previously had amplitude_engagement_synced_at:
+-- ALTER TABLE announcements RENAME COLUMN amplitude_engagement_synced_at TO engagement_metrics_synced_at;
 
 -- Enable RLS (service role bypasses)
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;

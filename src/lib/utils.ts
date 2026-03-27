@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** Display Amplitude engagement sync timestamp for the dashboard. */
+/** Display last engagement metrics sync timestamp for the dashboard. */
 export function formatEngagementSyncedAt(iso: string | null | undefined): string {
   if (!iso) return 'Never synced'
   return new Date(iso).toLocaleString('en-US', {

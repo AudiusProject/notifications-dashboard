@@ -48,24 +48,17 @@ npm run lint    # ESLint
   - `notification-preview.tsx` — Mobile push notification preview
   - `edit-copy-dialog.tsx` — Modal for editing automated trigger copy
 
-## Analytics (Amplitude)
+## Engagement metrics (Discovery)
 
-- **Server-side** in API routes: `src/lib/analytics/track.ts` posts to Amplitude HTTP API when `AMPLITUDE_API_KEY` is set. Use `scheduleDashboardAnalytics()` (wraps `after()`). Event names live in `src/lib/analytics/events.ts`.
-- **User id:** staff email from session (same as login).
-
-## Amplitude read path (engagement)
-
-- **Cron:** `vercel.json` → `GET /api/cron/sync-amplitude-engagement` (Bearer `CRON_SECRET`).
-- **Implementation:** `src/lib/amplitude/segmentation.ts` (Dashboard REST Event Segmentation), `syncAnnouncementEngagement.ts`.
-- **Env:** `AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY`, optional `AMPLITUDE_DASHBOARD_API_BASE` for EU.
+- **Cron:** `vercel.json` → `GET /api/cron/sync-engagement` (Bearer `CRON_SECRET`).
+- **Implementation:** `src/lib/engagement/syncAnnouncementEngagement.ts`, `src/lib/discovery/notificationCampaignPushOpens.ts`.
+- **Env:** `AUDIUS_API_URL`, `NOTIFICATION_CAMPAIGN_OPEN_METRICS_SECRET` (must match API `notificationCampaignOpenMetricsSecret`).
 
 ## Stats Sources
 
 - **Delivery / Recipients:** AWS SNS delivery receipts
-- **Open rate & CTA click rate:** For Audius we treat these as **the same user action** — tapping the announcement push applies the deep link / route (`open_rate` / `cta_click_rate` and funnel steps can be filled from **one** Amplitude event or the same count). The schema still has separate columns for layout flexibility; you may duplicate the value or collapse the UI later.
-- **Retention Uplift:** Amplitude cohort analysis (7-day retention delta)
-- **Disable Rate:** SNS endpoint disable events / identity DB
-- **Downstream Actions:** Amplitude (play starts, session length, playlist creates)
+- **Open rate / unique opens:** Discovery (`notification_campaign_push_open` via Audius API); synced into Supabase by cron or manual refresh
+- **Retention Uplift / Disable Rate / Downstream actions:** Schema supports these; populate when a pipeline exists
 - **Historical Performance:** Aggregated monthly in `trigger_performance` table
 
 ## Automated Notification Sender

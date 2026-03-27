@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { Announcement } from '@/lib/supabase/types'
-import { DashboardAnalyticsEvents } from '@/lib/analytics/events'
-import { scheduleDashboardAnalytics, truncateForAnalytics } from '@/lib/analytics/track'
-
 type Context = { params: Promise<{ id: string }> }
 
 const SEND_BATCH_SIZE = 500
@@ -120,24 +117,8 @@ export async function POST(request: NextRequest, { params }: Context) {
     const message = err instanceof Error ? err.message : 'Send failed'
     console.error('Send announcement failed:', err)
 
-    scheduleDashboardAnalytics(
-      session.email,
-      DashboardAnalyticsEvents.ANNOUNCEMENT_SEND_FAILURE,
-      {
-        notificationCampaignId: id,
-        recipient_count: userIds.length,
-        error_message: truncateForAnalytics(message),
-      }
-    )
-
     return NextResponse.json({ error: message }, { status: 500 })
   }
-
-  scheduleDashboardAnalytics(session.email, DashboardAnalyticsEvents.ANNOUNCEMENT_SEND_SUCCESS, {
-    notificationCampaignId: id,
-    recipient_count: userIds.length,
-    sent_count: sentCount,
-  })
 
   return NextResponse.json({
     ok: true,

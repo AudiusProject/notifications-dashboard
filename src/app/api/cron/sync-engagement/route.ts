@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 
-import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import {
   syncAnnouncementEngagementById,
   type AnnouncementRow,
-} from '@/lib/amplitude/syncAnnouncementEngagement'
+} from '@/lib/engagement/syncAnnouncementEngagement'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { notificationCampaignOpenMetricsConfigured } from '@/lib/discovery/notificationCampaignPushOpens'
 
 export const dynamic = 'force-dynamic'
 /** Vercel Pro+: raise if the job needs more time for many announcements. */
@@ -28,28 +29,19 @@ function verifyCron(request: Request): NextResponse | null {
 }
 
 /**
- * Vercel Cron: syncs engagement for sent announcements into Supabase.
- * Push opens: Discovery (`AUDIUS_API_URL` + `NOTIFICATION_CAMPAIGN_OPEN_METRICS_SECRET`) when set;
- * otherwise Amplitude. Tile/CTA: Amplitude when keys are set.
- *
- * Requires `CRON_SECRET`, Supabase admin, and either Discovery open metrics and/or Amplitude keys.
+ * Vercel Cron: syncs push open metrics from Discovery into Supabase announcements.
+ * Requires `CRON_SECRET`, Supabase admin, and `AUDIUS_API_URL` +
+ * `NOTIFICATION_CAMPAIGN_OPEN_METRICS_SECRET`.
  */
 export async function GET(request: Request) {
   const authError = verifyCron(request)
   if (authError) return authError
 
-  const hasAmplitude =
-    Boolean(process.env.AMPLITUDE_API_KEY?.trim()) &&
-    Boolean(process.env.AMPLITUDE_SECRET_KEY?.trim())
-  const hasDiscoveryOpens =
-    Boolean(process.env.AUDIUS_API_URL?.trim()) &&
-    Boolean(process.env.NOTIFICATION_CAMPAIGN_OPEN_METRICS_SECRET?.trim())
-
-  if (!hasAmplitude && !hasDiscoveryOpens) {
+  if (!notificationCampaignOpenMetricsConfigured()) {
     return NextResponse.json(
       {
         error:
-          'Metrics sync not configured: set AUDIUS_API_URL + NOTIFICATION_CAMPAIGN_OPEN_METRICS_SECRET and/or AMPLITUDE_API_KEY + AMPLITUDE_SECRET_KEY',
+          'Metrics sync not configured: set AUDIUS_API_URL and NOTIFICATION_CAMPAIGN_OPEN_METRICS_SECRET',
       },
       { status: 503 }
     )

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { getSessionFromRequest } from '@/lib/auth'
-import { syncAnnouncementEngagementById } from '@/lib/amplitude/syncAnnouncementEngagement'
+import { syncAnnouncementEngagementById } from '@/lib/engagement/syncAnnouncementEngagement'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { Announcement } from '@/lib/supabase/types'
 
@@ -10,9 +10,7 @@ type Context = { params: Promise<{ id: string }> }
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-/**
- * Manual refresh: same engagement sync as the Vercel cron (Discovery opens + optional Amplitude tile/CTA).
- */
+/** Manual refresh: same engagement sync as the Vercel cron (Discovery push opens). */
 export async function POST(request: NextRequest, { params }: Context) {
   const session = await getSessionFromRequest(request)
   if (!session) {

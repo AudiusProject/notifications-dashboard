@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { Announcement } from '@/lib/supabase/types'
-import { DashboardAnalyticsEvents } from '@/lib/analytics/events'
-import { scheduleDashboardAnalytics } from '@/lib/analytics/track'
-
 type Context = { params: Promise<{ id: string }> }
 
 async function requireSession(request: NextRequest) {
@@ -45,13 +42,6 @@ export async function PATCH(request: NextRequest, { params }: Context) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const updatedFields = Object.keys(updates).filter((k) => k !== 'updated_at')
-  scheduleDashboardAnalytics(session.email, DashboardAnalyticsEvents.ANNOUNCEMENT_UPDATED, {
-    notificationCampaignId: id,
-    updated_fields: updatedFields.slice(0, 40),
-    updated_field_count: updatedFields.length,
-  })
-
   return NextResponse.json(data)
 }
 
@@ -64,10 +54,6 @@ export async function DELETE(request: NextRequest, { params }: Context) {
   const { error } = await (supabase as any).from('announcements').delete().eq('id', id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  scheduleDashboardAnalytics(session.email, DashboardAnalyticsEvents.ANNOUNCEMENT_DELETED, {
-    notificationCampaignId: id,
-  })
 
   return NextResponse.json({ ok: true })
 }

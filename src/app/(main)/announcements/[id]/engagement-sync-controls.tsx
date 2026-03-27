@@ -9,7 +9,7 @@ import { formatEngagementSyncedAt } from '@/lib/utils'
 const messages = {
   sync: 'Sync metrics',
   syncing: 'Syncing…',
-  hint: 'Pulls latest counts from Amplitude (same as the hourly cron).',
+  hint: 'Pulls latest open counts from Discovery (same as the hourly cron).',
 }
 
 type Props = {

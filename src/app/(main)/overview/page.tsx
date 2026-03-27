@@ -24,9 +24,9 @@ export default async function OverviewPage() {
   ] = await Promise.all([
     supabase
       .from('announcements')
-      .select('amplitude_engagement_synced_at')
-      .not('amplitude_engagement_synced_at', 'is', null)
-      .order('amplitude_engagement_synced_at', { ascending: false })
+      .select('engagement_metrics_synced_at')
+      .not('engagement_metrics_synced_at', 'is', null)
+      .order('engagement_metrics_synced_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
     supabase
@@ -42,9 +42,9 @@ export default async function OverviewPage() {
     latestSyncRow &&
     typeof latestSyncRow === 'object' &&
     latestSyncRow !== null &&
-    'amplitude_engagement_synced_at' in latestSyncRow
-      ? (latestSyncRow as { amplitude_engagement_synced_at: string | null })
-          .amplitude_engagement_synced_at
+    'engagement_metrics_synced_at' in latestSyncRow
+      ? (latestSyncRow as { engagement_metrics_synced_at: string | null })
+          .engagement_metrics_synced_at
       : null
 
   const ids = announcements30d?.map((a) => a.id) ?? []
@@ -86,7 +86,7 @@ export default async function OverviewPage() {
           separately.
         </p>
         <p className="mt-2 text-xs text-neutral-500">
-          Latest Amplitude engagement sync:{' '}
+          Latest engagement metrics sync:{' '}
           <span className="font-medium text-neutral-700">
             {formatEngagementSyncedAt(lastEngagementSync)}
           </span>

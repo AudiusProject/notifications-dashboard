@@ -1,7 +1,14 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+/** App directory — avoids Turbopack inferring a parent folder (e.g. multi-repo `Dev/Audius`) as root, which breaks `@import "tailwindcss"` resolution. */
+const appRoot = path.dirname(fileURLToPath(import.meta.url))
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+  turbopack: {
+    root: appRoot,
+  },
+}
 
-export default nextConfig;
+export default nextConfig

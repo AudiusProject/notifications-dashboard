@@ -130,7 +130,7 @@ export function AnnouncementsTable({ announcements }: Props) {
                 <TableCell className="text-right text-xs text-neutral-500">
                   {a.status === 'sent'
                     ? formatEngagementSyncedAt(
-                        a.amplitude_engagement_synced_at
+                        a.engagement_metrics_synced_at
                       )
                     : '—'}
                 </TableCell>

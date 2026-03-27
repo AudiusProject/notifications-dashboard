@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { displayNameFromSession, getSessionFromRequest } from '@/lib/auth'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { AutomatedTrigger, TriggerPerformance } from '@/lib/supabase/types'
-import { DashboardAnalyticsEvents } from '@/lib/analytics/events'
-import { scheduleDashboardAnalytics } from '@/lib/analytics/track'
-
 type Context = { params: Promise<{ id: string }> }
 
 async function requireSession(request: NextRequest) {
@@ -61,19 +58,6 @@ export async function PATCH(request: NextRequest, { params }: Context) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  const trackedFields = Object.keys(filtered).filter(
-    (k) => k !== 'updated_at' && k !== 'last_updated_by'
-  )
-  scheduleDashboardAnalytics(
-    session.email,
-    DashboardAnalyticsEvents.AUTOMATED_TRIGGER_UPDATED,
-    {
-      automated_trigger_id: id,
-      updated_fields: trackedFields.slice(0, 40),
-      updated_field_count: trackedFields.length,
-    }
-  )
 
   return NextResponse.json(data)
 }

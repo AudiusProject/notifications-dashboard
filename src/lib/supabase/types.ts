@@ -34,8 +34,8 @@ export type Announcement = {
   funnel_opened: number | null
   funnel_clicked: number | null
 
-  /** Set by Vercel cron + Amplitude Dashboard API */
-  amplitude_engagement_synced_at: string | null
+  /** Last successful sync of open metrics from Discovery (cron or manual). */
+  engagement_metrics_synced_at: string | null
 
   created_at: string
   updated_at: string
@@ -94,21 +94,25 @@ export type Database = {
         Row: Announcement
         Insert: Partial<Announcement> & Pick<Announcement, 'internal_label' | 'heading' | 'body' | 'created_by'>
         Update: Partial<Announcement>
+        Relationships: []
       }
       automated_triggers: {
         Row: AutomatedTrigger
         Insert: Partial<AutomatedTrigger> & Pick<AutomatedTrigger, 'name' | 'trigger_condition' | 'trigger_hours' | 'heading' | 'body'>
         Update: Partial<AutomatedTrigger>
+        Relationships: []
       }
       announcement_recipients: {
         Row: AnnouncementRecipient
         Insert: AnnouncementRecipient
         Update: Partial<AnnouncementRecipient>
+        Relationships: []
       }
       trigger_performance: {
         Row: TriggerPerformance
         Insert: Partial<TriggerPerformance> & Pick<TriggerPerformance, 'trigger_id' | 'month'>
         Update: Partial<TriggerPerformance>
+        Relationships: []
       }
     }
     Views: Record<string, never>
