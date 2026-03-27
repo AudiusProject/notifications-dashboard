@@ -9,6 +9,7 @@ npm install
 npm run dev
 ```
 
+
 Open [http://localhost:3000](http://localhost:3000). Set env in `.env.local` (see `.env.example`).
 
 **Access:** Only users who sign in with a Google account whose email ends with `@audius.co` or `@audius.org` can use the dashboard. Configure Google OAuth (see `.env.example`: `GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `AUTH_SESSION_SECRET`).
