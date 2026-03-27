@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -94,9 +93,7 @@ export function AnnouncementsTable({ announcements }: Props) {
               <TableHead className="text-right">Audience</TableHead>
               <TableHead className="text-right">Open Rate</TableHead>
               <TableHead className="min-w-[120px] text-right">Metrics sync</TableHead>
-              <TableHead className="text-right">CTA %</TableHead>
               <TableHead className="text-right">Ret. Uplift</TableHead>
-              <TableHead className="text-right">Disable %</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-10" />
             </TableRow>
@@ -135,9 +132,6 @@ export function AnnouncementsTable({ announcements }: Props) {
                     : '—'}
                 </TableCell>
                 <TableCell className="text-right">
-                  {formatPct(a.cta_click_rate)}
-                </TableCell>
-                <TableCell className="text-right">
                   {a.retention_uplift != null ? (
                     <span className="text-green-600">
                       {formatUplift(a.retention_uplift)}
@@ -145,9 +139,6 @@ export function AnnouncementsTable({ announcements }: Props) {
                   ) : (
                     '-'
                   )}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatPct(a.disable_rate)}
                 </TableCell>
                 <TableCell>
                   <Badge variant={statusVariant[a.status]}>
@@ -167,7 +158,11 @@ export function AnnouncementsTable({ announcements }: Props) {
                           View Details
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem>Duplicate</DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Link href={`/announcements/new?duplicate=${a.id}`}>
+                          Duplicate
+                        </Link>
+                      </DropdownMenuItem>
                       {a.status === 'draft' ? (
                         <DropdownMenuItem className="text-red-600">
                           Delete

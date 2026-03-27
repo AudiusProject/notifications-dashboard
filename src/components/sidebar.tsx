@@ -4,11 +4,20 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { BarChart3, Megaphone, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SHOW_AUTOMATED_NOTIFICATIONS_UI } from '@/lib/product-flags'
 
 const nav = [
   { label: 'Overview', href: '/overview', icon: BarChart3 },
   { label: 'Announcements', href: '/announcements', icon: Megaphone },
-  { label: 'Automated Notifications', href: '/automated', icon: Zap },
+  ...(SHOW_AUTOMATED_NOTIFICATIONS_UI
+    ? [
+        {
+          label: 'Automated Notifications',
+          href: '/automated',
+          icon: Zap,
+        } as const,
+      ]
+    : []),
 ]
 
 export function Sidebar() {

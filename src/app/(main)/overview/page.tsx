@@ -9,6 +9,7 @@ import {
 } from '@/lib/overview-stats'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { formatEngagementSyncedAt } from '@/lib/utils'
+import { SHOW_AUTOMATED_NOTIFICATIONS_UI } from '@/lib/product-flags'
 import { Bell, Users, TrendingUp, Zap } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -82,8 +83,10 @@ export default async function OverviewPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
         <p className="text-sm text-neutral-500">
-          Announcement metrics (last 30 days). Automated triggers are listed
-          separately.
+          Announcement metrics (last 30 days).
+          {SHOW_AUTOMATED_NOTIFICATIONS_UI
+            ? ' Automated triggers are listed separately.'
+            : null}
         </p>
         <p className="mt-2 text-xs text-neutral-500">
           Latest engagement metrics sync:{' '}
@@ -96,7 +99,13 @@ export default async function OverviewPage() {
         ) : null}
       </div>
 
-      <div className="mb-8 grid grid-cols-4 gap-4">
+      <div
+        className={
+          SHOW_AUTOMATED_NOTIFICATIONS_UI
+            ? 'mb-8 grid grid-cols-4 gap-4'
+            : 'mb-8 grid grid-cols-3 gap-4'
+        }
+      >
         <StatCard
           label="Announcement sends"
           value={String(announcementSends30d)}
@@ -123,16 +132,18 @@ export default async function OverviewPage() {
           subtitle="Last 30 days"
           icon={TrendingUp}
         />
-        <StatCard
-          label="Active triggers"
-          value={String(activeTriggerCount)}
-          subtitle={
-            inactiveTriggerCount > 0
-              ? `${inactiveTriggerCount} inactive`
-              : 'Automated rules'
-          }
-          icon={Zap}
-        />
+        {SHOW_AUTOMATED_NOTIFICATIONS_UI ? (
+          <StatCard
+            label="Active triggers"
+            value={String(activeTriggerCount)}
+            subtitle={
+              inactiveTriggerCount > 0
+                ? `${inactiveTriggerCount} inactive`
+                : 'Automated rules'
+            }
+            icon={Zap}
+          />
+        ) : null}
       </div>
 
       <Card>

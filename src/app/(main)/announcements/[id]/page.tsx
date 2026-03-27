@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Copy, Users, Eye, MousePointerClick, UserMinus } from 'lucide-react'
+import { ArrowLeft, Copy, Users, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -81,7 +81,12 @@ export default async function AnnouncementDetailPage({ params }: Props) {
             {a.status === 'ready' ? (
               <SendAnnouncementButton announcementId={a.id} />
             ) : null}
-            <Button variant="outline">
+            <Button
+              variant="outline"
+              render={
+                <Link href={`/announcements/new?duplicate=${a.id}`} />
+              }
+            >
               <Copy className="mr-2 size-4" />
               Duplicate
             </Button>
@@ -102,7 +107,7 @@ export default async function AnnouncementDetailPage({ params }: Props) {
               syncedAt={a.engagement_metrics_synced_at}
             />
           </div>
-          <div className="mb-8 grid grid-cols-4 gap-4">
+          <div className="mb-8 grid grid-cols-2 gap-4">
             <StatCard
               label="Recipients Reached"
               value={formatNumber(a.recipients_reached)}
@@ -123,28 +128,6 @@ export default async function AnnouncementDetailPage({ params }: Props) {
               }
               subtitleColor="green"
               icon={Eye}
-            />
-            <StatCard
-              label="CTA Click Rate"
-              value={formatPct(a.cta_click_rate)}
-              subtitle={
-                a.cta_clicks != null
-                  ? `↗ ${formatNumber(a.cta_clicks)} clicks`
-                  : undefined
-              }
-              subtitleColor="green"
-              icon={MousePointerClick}
-            />
-            <StatCard
-              label="Disable Rate"
-              value={formatPct(a.disable_rate)}
-              subtitle={
-                a.disables != null
-                  ? `✕ ${formatNumber(a.disables)} unsubscribes`
-                  : undefined
-              }
-              subtitleColor="red"
-              icon={UserMinus}
             />
           </div>
 

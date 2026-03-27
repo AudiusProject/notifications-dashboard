@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, ArrowRight, Upload, LinkIcon, ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -26,6 +26,7 @@ const messages = {
 
 export function AnnouncementForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const {
     internalLabel,
     heading,
@@ -41,6 +42,66 @@ export function AnnouncementForm() {
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [duplicateLoading, setDuplicateLoading] = useState(false)
+
+  const duplicateSourceId = searchParams.get('duplicate')
+
+  useEffect(() => {
+    if (!duplicateSourceId) return
+
+    let cancelled = false
+    setDuplicateLoading(true)
+    setError(null)
+
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/announcements/${duplicateSourceId}`)
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as {
+            error?: string
+          }
+          throw new Error(
+            typeof data.error === 'string'
+              ? data.error
+              : 'Could not load announcement to duplicate'
+          )
+        }
+        const data = (await res.json()) as {
+          internal_label?: string
+          heading?: string
+          body?: string
+          cta_link?: string | null
+          image_url?: string | null
+        }
+        if (cancelled) return
+
+        const imageUrl = data.image_url?.trim() ?? ''
+        setDraft({
+          internalLabel: `${data.internal_label ?? 'Announcement'} (copy)`,
+          heading: data.heading ?? '',
+          body: data.body ?? '',
+          ctaLink: data.cta_link ?? '',
+          csvFile: null,
+          imageSource: imageUrl ? 'url' : 'upload',
+          imageFile: null,
+          imageUrlInput: imageUrl,
+        })
+        router.replace('/announcements/new', { scroll: false })
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : 'Failed to duplicate'
+          )
+        }
+      } finally {
+        if (!cancelled) setDuplicateLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [duplicateSourceId, router, setDraft])
 
   const canSaveDraft = Boolean(
     internalLabel.trim() && heading.trim() && body.trim()
@@ -123,7 +184,9 @@ export function AnnouncementForm() {
             {messages.title}
           </h1>
           <p className="text-sm text-neutral-500">
-            {messages.subtitle}
+            {duplicateLoading
+              ? 'Copying content from the selected announcement…'
+              : messages.subtitle}
           </p>
         </div>
       </div>
