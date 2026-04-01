@@ -150,7 +150,12 @@ export function AnnouncementForm() {
           typeof data.error === 'string' ? data.error : 'Failed to save'
         )
       }
-      router.push('/announcements')
+      const saved = (await res.json()) as { id?: string }
+      if (typeof saved.id === 'string') {
+        router.push(`/announcements/${saved.id}`)
+      } else {
+        router.push('/announcements')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save')
     } finally {

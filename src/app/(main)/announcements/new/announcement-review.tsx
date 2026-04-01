@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -123,6 +123,8 @@ export function AnnouncementReview() {
   const [confirmed, setConfirmed] = useState(false)
   const [pending, setPending] = useState<'draft' | 'send' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** Prevents "incomplete draft" redirect after send when resetDraft() clears the form. */
+  const skipIncompleteRedirectRef = useRef(false)
 
   const canReview = Boolean(
     internalLabel.trim() &&
@@ -132,7 +134,13 @@ export function AnnouncementReview() {
   )
 
   useEffect(() => {
-    if (!canReview) {
+    if (canReview) {
+      skipIncompleteRedirectRef.current = false
+    }
+  }, [canReview])
+
+  useEffect(() => {
+    if (!canReview && !skipIncompleteRedirectRef.current) {
       router.replace('/announcements/new')
     }
   }, [canReview, router])
@@ -200,7 +208,12 @@ export function AnnouncementReview() {
           typeof data.error === 'string' ? data.error : 'Failed to save'
         )
       }
-      router.push('/announcements')
+      const saved = (await res.json()) as { id?: string }
+      if (typeof saved.id === 'string') {
+        router.push(`/announcements/${saved.id}`)
+      } else {
+        router.push('/announcements')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save')
     } finally {
@@ -254,6 +267,7 @@ export function AnnouncementReview() {
         throw new Error(data.error ?? `Send failed (${sendRes.status})`)
       }
 
+      skipIncompleteRedirectRef.current = true
       resetDraft()
       router.push(`/announcements/${id}`)
     } catch (err) {
