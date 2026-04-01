@@ -63,7 +63,7 @@ Open [http://localhost:3000](http://localhost:3000). Set env in `.env.local` (se
 
 **Rates:** **`open_rate`** is computed vs **`announcement_recipients`** row count (not `funnel_sent`). **`unique_opens`** and **`funnel_opened`** store the Discovery distinct-opener count.
 
-**CTA / tile / downstream columns** (`cta_click_rate`, `funnel_clicked`, retention, etc.) remain in the schema for future use; the sync job does not populate them.
+**CTA / tile / downstream columns** (`cta_click_rate`, `cta_clicks`, retention, etc.) remain in the schema for future use; the sync job does not populate them.
 
 ### Engagement sync (Vercel Cron)
 

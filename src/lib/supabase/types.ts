@@ -32,7 +32,6 @@ export type Announcement = {
   funnel_sent: number | null
   funnel_delivered: number | null
   funnel_opened: number | null
-  funnel_clicked: number | null
 
   /** Last successful sync of open metrics from Discovery (cron or manual). */
   engagement_metrics_synced_at: string | null

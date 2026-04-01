@@ -138,7 +138,6 @@ export default async function AnnouncementDetailPage({ params }: Props) {
                 { label: 'Sent', value: a.funnel_sent ?? 0 },
                 { label: 'Delivered', value: a.funnel_delivered ?? 0 },
                 { label: 'Opened', value: a.funnel_opened ?? 0 },
-                { label: 'Clicked', value: a.funnel_clicked ?? 0 },
               ]}
             />
             <Card>

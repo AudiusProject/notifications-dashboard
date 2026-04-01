@@ -36,11 +36,10 @@ CREATE TABLE announcements (
   session_length_vs_avg TEXT,
   playlist_creates INTEGER,
 
-  -- Delivery funnel raw counts
+  -- Delivery funnel raw counts (opens = tap-to-open; no separate "clicked" step)
   funnel_sent INTEGER,
   funnel_delivered INTEGER,
   funnel_opened INTEGER,
-  funnel_clicked INTEGER,
 
   -- Last successful sync of open metrics from Discovery (Vercel cron or manual)
   engagement_metrics_synced_at TIMESTAMPTZ,
@@ -111,6 +110,8 @@ CREATE INDEX idx_announcements_created ON announcements(created_at DESC);
 -- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS engagement_metrics_synced_at TIMESTAMPTZ;
 -- If you previously had amplitude_engagement_synced_at:
 -- ALTER TABLE announcements RENAME COLUMN amplitude_engagement_synced_at TO engagement_metrics_synced_at;
+-- Removed funnel_clicked (same as opens for push metrics):
+-- ALTER TABLE announcements DROP COLUMN IF EXISTS funnel_clicked;
 
 -- Enable RLS (service role bypasses)
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
@@ -163,7 +164,7 @@ INSERT INTO announcements (
   audience_size, recipients_reached, delivery_rate, open_rate, unique_opens,
   cta_click_rate, cta_clicks, retention_uplift, disable_rate, disables,
   play_starts, play_starts_vs_avg, avg_session_length_seconds, session_length_vs_avg, playlist_creates,
-  funnel_sent, funnel_delivered, funnel_opened, funnel_clicked,
+  funnel_sent, funnel_delivered, funnel_opened,
   audience_csv_filename
 ) VALUES
   ('Spring Engagement Push', 'New music is waiting for you 🎵', 'Jump back in and hear fresh tracks picked for your taste.',
@@ -171,28 +172,28 @@ INSERT INTO announcements (
    45120, 44800, 99.20, 38.00, 17024,
    12.00, 5414, 4.20, 0.20, 89,
    12450, 14.00, 860, '+2m vs avg', 892,
-   45120, 44800, 17024, 5414, 'spring_cohort_2026.csv'),
+   45120, 44800, 17024, 'spring_cohort_2026.csv'),
   ('March Newsletter', 'Draft saved yesterday', '',
    NULL, 'draft', 'Dylan', NULL,
    NULL, NULL, NULL, NULL, NULL,
    NULL, NULL, NULL, NULL, NULL,
    NULL, NULL, NULL, NULL, NULL,
-   NULL, NULL, NULL, NULL, NULL),
+   NULL, NULL, NULL, NULL),
   ('New Feature: Playlists', 'Build your ultimate mix 💎', 'Create, share, and discover playlists built by fans like you.',
    'app://playlists', 'sent', 'Marcus', '2026-02-28T15:00:00Z',
    112000, 110500, 98.70, 45.00, 49725,
    18.00, 19890, 6.10, 0.40, 448,
    8200, 8.00, 720, '+1m vs avg', 560,
-   112000, 110500, 49725, 19890, NULL),
+   112000, 110500, 49725, NULL),
   ('Holiday Promo Code', 'Get 20% off your next month 🎁', 'Use code HOLIDAY25 for a special discount on Audius Premium.',
    'app://settings/premium', 'sent', 'Roneil', '2025-12-15T10:00:00Z',
    350000, 346500, 99.00, 52.00, 180180,
    25.00, 86625, 8.50, 1.10, 3850,
    15800, 12.00, 950, '+3m vs avg', 1200,
-   350000, 346500, 180180, 86625, NULL),
+   350000, 346500, 180180, NULL),
   ('Q1 Winback Campaign', 'We missed you!', 'Come back and check out what is new on Audius this quarter.',
    'app://feed', 'ready', 'Ray', NULL,
    42500, NULL, NULL, NULL, NULL,
    NULL, NULL, NULL, NULL, NULL,
    NULL, NULL, NULL, NULL, NULL,
-   NULL, NULL, NULL, NULL, 'q1_winback_users.csv');
+   NULL, NULL, NULL, 'q1_winback_users.csv');
