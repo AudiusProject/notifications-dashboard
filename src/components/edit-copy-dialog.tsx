@@ -14,10 +14,11 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { NotificationPreview } from '@/components/notification-preview'
+import {
+  NOTIFICATION_BODY_MAX_LENGTH,
+  NOTIFICATION_HEADING_MAX_LENGTH,
+} from '@/lib/notificationCopyLimits'
 import type { AutomatedTrigger } from '@/lib/supabase/types'
-
-const HEADING_MAX = 40
-const BODY_MAX = 120
 
 type Props = {
   trigger: AutomatedTrigger
@@ -27,8 +28,12 @@ type Props = {
 }
 
 export function EditCopyDialog({ trigger, open, onOpenChange, onSaved }: Props) {
-  const [heading, setHeading] = useState(trigger.heading)
-  const [body, setBody] = useState(trigger.body)
+  const [heading, setHeading] = useState(() =>
+    trigger.heading.slice(0, NOTIFICATION_HEADING_MAX_LENGTH)
+  )
+  const [body, setBody] = useState(() =>
+    trigger.body.slice(0, NOTIFICATION_BODY_MAX_LENGTH)
+  )
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
@@ -75,12 +80,12 @@ export function EditCopyDialog({ trigger, open, onOpenChange, onSaved }: Props) 
               <div className="flex items-center justify-between">
                 <Label htmlFor="edit-heading">Heading</Label>
                 <span className="text-sm text-neutral-500">
-                  {heading.length}/{HEADING_MAX}
+                  {heading.length}/{NOTIFICATION_HEADING_MAX_LENGTH}
                 </span>
               </div>
               <Input
                 id="edit-heading"
-                maxLength={HEADING_MAX}
+                maxLength={NOTIFICATION_HEADING_MAX_LENGTH}
                 value={heading}
                 onChange={(e) => setHeading(e.target.value)}
               />
@@ -89,12 +94,12 @@ export function EditCopyDialog({ trigger, open, onOpenChange, onSaved }: Props) 
               <div className="flex items-center justify-between">
                 <Label htmlFor="edit-body">Body</Label>
                 <span className="text-sm text-neutral-500">
-                  {body.length}/{BODY_MAX}
+                  {body.length}/{NOTIFICATION_BODY_MAX_LENGTH}
                 </span>
               </div>
               <Textarea
                 id="edit-body"
-                maxLength={BODY_MAX}
+                maxLength={NOTIFICATION_BODY_MAX_LENGTH}
                 rows={5}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}

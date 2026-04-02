@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth'
+import {
+  NOTIFICATION_BODY_MAX_LENGTH,
+  NOTIFICATION_HEADING_MAX_LENGTH,
+} from '@/lib/notificationCopyLimits'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { Announcement } from '@/lib/supabase/types'
 type Context = { params: Promise<{ id: string }> }
@@ -31,6 +35,27 @@ export async function PATCH(request: NextRequest, { params }: Context) {
   const { id } = await params
   const supabase = getSupabaseAdmin()
   const updates = await request.json()
+
+  if (typeof updates.heading === 'string') {
+    if (updates.heading.length > NOTIFICATION_HEADING_MAX_LENGTH) {
+      return NextResponse.json(
+        {
+          error: `Heading must be at most ${NOTIFICATION_HEADING_MAX_LENGTH} characters`,
+        },
+        { status: 400 }
+      )
+    }
+  }
+  if (typeof updates.body === 'string') {
+    if (updates.body.length > NOTIFICATION_BODY_MAX_LENGTH) {
+      return NextResponse.json(
+        {
+          error: `Body must be at most ${NOTIFICATION_BODY_MAX_LENGTH} characters`,
+        },
+        { status: 400 }
+      )
+    }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)

@@ -9,6 +9,10 @@ import {
   UPLOADS_BUCKET,
   formatStorageUploadError,
 } from '@/lib/supabaseStorage'
+import {
+  NOTIFICATION_BODY_MAX_LENGTH,
+  NOTIFICATION_HEADING_MAX_LENGTH,
+} from '@/lib/notificationCopyLimits'
 import type { Announcement } from '@/lib/supabase/types'
 export async function GET(request: NextRequest) {
   const session = await getSessionFromRequest(request)
@@ -36,6 +40,23 @@ export async function POST(request: NextRequest) {
   const cta_link = (formData.get('cta_link') as string) || null
   const status = (formData.get('status') as string) || 'draft'
   const created_by = displayNameFromSession(session)
+
+  if (heading.length > NOTIFICATION_HEADING_MAX_LENGTH) {
+    return NextResponse.json(
+      {
+        error: `Heading must be at most ${NOTIFICATION_HEADING_MAX_LENGTH} characters`,
+      },
+      { status: 400 }
+    )
+  }
+  if (body.length > NOTIFICATION_BODY_MAX_LENGTH) {
+    return NextResponse.json(
+      {
+        error: `Body must be at most ${NOTIFICATION_BODY_MAX_LENGTH} characters`,
+      },
+      { status: 400 }
+    )
+  }
 
   const csvFile = formData.get('csv') as File | null
   const imageFile = formData.get('image') as File | null

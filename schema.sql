@@ -5,7 +5,7 @@
 CREATE TABLE announcements (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   internal_label TEXT NOT NULL,
-  heading TEXT NOT NULL CHECK (char_length(heading) <= 40),
+  heading TEXT NOT NULL CHECK (char_length(heading) <= 30),
   body TEXT NOT NULL CHECK (char_length(body) <= 120),
   image_url TEXT,
   cta_link TEXT,
@@ -64,7 +64,7 @@ CREATE TABLE automated_triggers (
   trigger_condition TEXT NOT NULL,
   trigger_hours INTEGER NOT NULL,
   is_active BOOLEAN DEFAULT TRUE,
-  heading TEXT NOT NULL CHECK (char_length(heading) <= 40),
+  heading TEXT NOT NULL CHECK (char_length(heading) <= 30),
   body TEXT NOT NULL CHECK (char_length(body) <= 120),
   image_url TEXT,
   cta_link TEXT,
@@ -105,6 +105,14 @@ CREATE TABLE trigger_performance (
 CREATE INDEX idx_trigger_performance_trigger ON trigger_performance(trigger_id);
 CREATE INDEX idx_announcements_status ON announcements(status);
 CREATE INDEX idx_announcements_created ON announcements(created_at DESC);
+
+-- Existing databases: heading max was 40; to align with app (30 chars), drop the old
+-- CHECK constraints (names from `\d announcements` / `\d automated_triggers`) and add:
+--   ALTER TABLE announcements ADD CONSTRAINT announcements_heading_len
+--     CHECK (char_length(heading) <= 30);
+--   ALTER TABLE automated_triggers ADD CONSTRAINT automated_triggers_heading_len
+--     CHECK (char_length(heading) <= 30);
+-- Shorten any headings longer than 30 characters before tightening constraints.
 
 -- Existing projects: add or rename engagement sync column
 -- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS engagement_metrics_synced_at TIMESTAMPTZ;

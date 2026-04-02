@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { displayNameFromSession, getSessionFromRequest } from '@/lib/auth'
+import {
+  NOTIFICATION_BODY_MAX_LENGTH,
+  NOTIFICATION_HEADING_MAX_LENGTH,
+} from '@/lib/notificationCopyLimits'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { AutomatedTrigger, TriggerPerformance } from '@/lib/supabase/types'
 type Context = { params: Promise<{ id: string }> }
@@ -46,6 +50,28 @@ export async function PATCH(request: NextRequest, { params }: Context) {
   for (const key of allowed) {
     if (key in updates) filtered[key] = updates[key]
   }
+
+  if (typeof filtered.heading === 'string') {
+    if (filtered.heading.length > NOTIFICATION_HEADING_MAX_LENGTH) {
+      return NextResponse.json(
+        {
+          error: `Heading must be at most ${NOTIFICATION_HEADING_MAX_LENGTH} characters`,
+        },
+        { status: 400 }
+      )
+    }
+  }
+  if (typeof filtered.body === 'string') {
+    if (filtered.body.length > NOTIFICATION_BODY_MAX_LENGTH) {
+      return NextResponse.json(
+        {
+          error: `Body must be at most ${NOTIFICATION_BODY_MAX_LENGTH} characters`,
+        },
+        { status: 400 }
+      )
+    }
+  }
+
   filtered.updated_at = new Date().toISOString()
   filtered.last_updated_by = displayNameFromSession(session)
 

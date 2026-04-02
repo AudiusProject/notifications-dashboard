@@ -11,10 +11,12 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { NotificationPreview } from '@/components/notification-preview'
 
-import { useAnnouncementDraft } from './announcement-draft-context'
+import {
+  NOTIFICATION_BODY_MAX_LENGTH,
+  NOTIFICATION_HEADING_MAX_LENGTH,
+} from '@/lib/notificationCopyLimits'
 
-const HEADING_MAX = 40
-const BODY_MAX = 120
+import { useAnnouncementDraft } from './announcement-draft-context'
 
 const messages = {
   title: 'Create Announcement',
@@ -78,8 +80,8 @@ export function AnnouncementForm() {
         const imageUrl = data.image_url?.trim() ?? ''
         setDraft({
           internalLabel: `${data.internal_label ?? 'Announcement'} (copy)`,
-          heading: data.heading ?? '',
-          body: data.body ?? '',
+          heading: (data.heading ?? '').slice(0, NOTIFICATION_HEADING_MAX_LENGTH),
+          body: (data.body ?? '').slice(0, NOTIFICATION_BODY_MAX_LENGTH),
           ctaLink: data.cta_link ?? '',
           csvFile: null,
           imageSource: imageUrl ? 'url' : 'upload',
@@ -221,13 +223,13 @@ export function AnnouncementForm() {
                 <div className="flex items-center justify-between">
                   <Label htmlFor="heading">Notification heading</Label>
                   <span className="text-sm text-neutral-500">
-                    {heading.length}/{HEADING_MAX}
+                    {heading.length}/{NOTIFICATION_HEADING_MAX_LENGTH}
                   </span>
                 </div>
                 <Input
                   id="heading"
                   placeholder="New music is waiting for you 🎵"
-                  maxLength={HEADING_MAX}
+                  maxLength={NOTIFICATION_HEADING_MAX_LENGTH}
                   value={heading}
                   onChange={(e) => setDraft({ heading: e.target.value })}
                 />
@@ -237,13 +239,13 @@ export function AnnouncementForm() {
                 <div className="flex items-center justify-between">
                   <Label htmlFor="body">Notification body</Label>
                   <span className="text-sm text-neutral-500">
-                    {body.length}/{BODY_MAX}
+                    {body.length}/{NOTIFICATION_BODY_MAX_LENGTH}
                   </span>
                 </div>
                 <Textarea
                   id="body"
                   placeholder="Enter short description..."
-                  maxLength={BODY_MAX}
+                  maxLength={NOTIFICATION_BODY_MAX_LENGTH}
                   rows={4}
                   value={body}
                   onChange={(e) => setDraft({ body: e.target.value })}
