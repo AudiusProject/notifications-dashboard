@@ -57,3 +57,43 @@ export async function fetchRecipientCountForAnnouncement(
   }
   return count ?? 0
 }
+
+const RECIPIENT_USER_IDS_PAGE = 1000
+
+/**
+ * All `user_id` values for one announcement. Paginated: PostgREST/Supabase
+ * defaults to at most 1000 rows per response unless `.range()` is used.
+ */
+export async function fetchRecipientUserIdsForAnnouncement(
+  supabase: SupabaseClient,
+  announcementId: string
+): Promise<number[]> {
+  const userIds: number[] = []
+  let offset = 0
+
+  for (;;) {
+    const { data, error } = await supabase
+      .from('announcement_recipients')
+      .select('user_id')
+      .eq('announcement_id', announcementId)
+      .order('user_id', { ascending: true })
+      .range(offset, offset + RECIPIENT_USER_IDS_PAGE - 1)
+
+    if (error) {
+      console.error('announcement_recipients user_id fetch:', error.message)
+      break
+    }
+
+    const batch = data ?? []
+    if (batch.length === 0) break
+
+    for (const row of batch) {
+      userIds.push(row.user_id as number)
+    }
+
+    offset += batch.length
+    if (batch.length < RECIPIENT_USER_IDS_PAGE) break
+  }
+
+  return userIds
+}

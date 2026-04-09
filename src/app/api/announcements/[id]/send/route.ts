@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { fetchRecipientUserIdsForAnnouncement } from '@/lib/announcement-recipient-counts'
 import { getSessionFromRequest } from '@/lib/auth'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { Announcement } from '@/lib/supabase/types'
@@ -29,12 +30,7 @@ export async function POST(request: NextRequest, { params }: Context) {
     )
   }
 
-  const { data: recipients } = await (supabase as any)
-    .from('announcement_recipients')
-    .select('user_id')
-    .eq('announcement_id', id)
-
-  const userIds: number[] = (recipients ?? []).map((r: { user_id: number }) => r.user_id)
+  const userIds = await fetchRecipientUserIdsForAnnouncement(supabase, id)
 
   if (userIds.length === 0) {
     return NextResponse.json(
