@@ -4,6 +4,7 @@ import {
   syncAnnouncementEngagementById,
   type AnnouncementRow,
 } from '@/lib/engagement/syncAnnouncementEngagement'
+import { syncEmailEngagementById } from '@/lib/engagement/syncEmailEngagement'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { notificationCampaignOpenMetricsConfigured } from '@/lib/discovery/notificationCampaignPushOpens'
 
@@ -62,30 +63,50 @@ export async function GET(request: Request) {
   }
 
   const announcements = (rows ?? []) as AnnouncementRow[]
-  const results: Array<{ id: string; ok: boolean; error?: string }> = []
+  const results: Array<{
+    id: string
+    push: { ok: boolean; error?: string }
+    email: { ok: boolean; error?: string }
+  }> = []
 
   for (let i = 0; i < announcements.length; i++) {
     const row = announcements[i]
     if (!row.sent_at) {
-      results.push({ id: row.id, ok: false, error: 'missing sent_at' })
+      results.push({
+        id: row.id,
+        push: { ok: false, error: 'missing sent_at' },
+        email: { ok: false, error: 'missing sent_at' },
+      })
       continue
     }
-    const result = await syncAnnouncementEngagementById(row.id)
-    if (result.ok) {
-      results.push({ id: row.id, ok: true })
-    } else {
-      results.push({ id: row.id, ok: false, error: result.error })
-    }
+    // Push opens (Discovery) and email aggregation (SendGrid events in
+    // Supabase) are independent; run both. Email sync is local-DB only, so
+    // it's cheap and doesn't need the inter-iteration sleep.
+    const [pushResult, emailResult] = await Promise.all([
+      syncAnnouncementEngagementById(row.id),
+      syncEmailEngagementById(row.id),
+    ])
+    results.push({
+      id: row.id,
+      push: pushResult.ok
+        ? { ok: true }
+        : { ok: false, error: pushResult.error },
+      email: emailResult.ok
+        ? { ok: true }
+        : { ok: false, error: emailResult.error },
+    })
     if (i < announcements.length - 1) {
       await new Promise((r) => setTimeout(r, 120))
     }
   }
 
-  const okCount = results.filter((r) => r.ok).length
+  const pushOk = results.filter((r) => r.push.ok).length
+  const emailOk = results.filter((r) => r.email.ok).length
   return NextResponse.json({
     ok: true,
     processed: announcements.length,
-    updated: okCount,
+    push_updated: pushOk,
+    email_updated: emailOk,
     results,
   })
 }

@@ -41,6 +41,20 @@ CREATE TABLE announcements (
   funnel_delivered INTEGER,
   funnel_opened INTEGER,
 
+  -- Email funnel raw counts (from SendGrid Event Webhook, keyed by custom_args.announcement_id).
+  -- Denominator for email rates is `email_sent` (actual SendGrid `processed` events),
+  -- NOT audience_size — only users with email_frequency='live' receive an announcement email.
+  -- Open rate is intentionally not aggregated: Apple Mail Privacy Protection pre-fetches
+  -- tracking pixels for ~50% of traffic, so the metric is noise. Raw `open` events are
+  -- still captured in email_events for optional debugging; click rate is the real signal.
+  email_sent INTEGER,
+  email_delivered INTEGER,
+  email_clicked INTEGER,
+  email_bounced INTEGER,
+  email_unsubscribed INTEGER,
+  email_spam_reported INTEGER,
+  email_metrics_synced_at TIMESTAMPTZ,
+
   -- Last successful sync of open metrics from Discovery (Vercel cron or manual)
   engagement_metrics_synced_at TIMESTAMPTZ,
 
@@ -92,6 +106,35 @@ CREATE TABLE automated_triggers (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Raw SendGrid Event Webhook log: one row per event, deduped on sg_event_id.
+-- Aggregated into announcements.email_* columns by the hourly cron.
+-- `user_id` stored as TEXT because SendGrid custom_args are strings; cast at read.
+CREATE TABLE email_events (
+  sg_event_id TEXT PRIMARY KEY,
+  announcement_id UUID REFERENCES announcements(id) ON DELETE CASCADE,
+  user_id TEXT,
+  event_type TEXT NOT NULL CHECK (event_type IN (
+    'processed', 'delivered', 'open', 'click',
+    'bounce', 'dropped', 'deferred', 'spamreport',
+    'unsubscribe', 'group_unsubscribe', 'group_resubscribe'
+  )),
+  url TEXT,
+  sg_message_id TEXT,
+  reason TEXT,
+  user_agent TEXT,
+  ip TEXT,
+  ts TIMESTAMPTZ NOT NULL,
+  received_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_email_events_announcement_event ON email_events(announcement_id, event_type);
+CREATE INDEX idx_email_events_click_url ON email_events(announcement_id, url) WHERE event_type = 'click';
+CREATE INDEX idx_email_events_ts ON email_events(ts DESC);
+
+-- RLS enabled immediately; no policies means anon/authenticated keys get no access.
+-- Webhook + cron access via service role key, which bypasses RLS by design.
+ALTER TABLE email_events ENABLE ROW LEVEL SECURITY;
+
 -- Historical performance data points for charting
 CREATE TABLE trigger_performance (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -121,7 +164,19 @@ CREATE INDEX idx_announcements_created ON announcements(created_at DESC);
 -- Removed funnel_clicked (same as opens for push metrics):
 -- ALTER TABLE announcements DROP COLUMN IF EXISTS funnel_clicked;
 
--- Enable RLS (service role bypasses)
+-- Existing projects: add email tracking columns + email_events table
+-- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS email_sent INTEGER;
+-- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS email_delivered INTEGER;
+-- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS email_clicked INTEGER;
+-- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS email_bounced INTEGER;
+-- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS email_unsubscribed INTEGER;
+-- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS email_spam_reported INTEGER;
+-- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS email_metrics_synced_at TIMESTAMPTZ;
+-- Then run the CREATE TABLE email_events + its three indexes above.
+-- If you previously added email_opened during an earlier rollout, drop it:
+-- ALTER TABLE announcements DROP COLUMN IF EXISTS email_opened;
+
+-- Enable RLS (service role bypasses); email_events is enabled inline at creation above.
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE automated_triggers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trigger_performance ENABLE ROW LEVEL SECURITY;

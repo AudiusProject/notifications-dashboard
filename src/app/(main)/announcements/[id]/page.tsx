@@ -1,15 +1,29 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Copy, Users, Eye } from 'lucide-react'
+import { ArrowLeft, Copy, Users, Eye, MousePointerClick } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatCard } from '@/components/stat-card'
 import { DeliveryFunnel } from '@/components/delivery-funnel'
+import { TopClickedLinks } from '@/components/top-clicked-links'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { fetchTopClickedLinks } from '@/lib/engagement/syncEmailEngagement'
 import { EngagementSyncControls } from './engagement-sync-controls'
 import { SendAnnouncementButton } from './send-button'
 import type { Announcement } from '@/lib/supabase/types'
+
+/**
+ * Percent of email_sent, rounded to 1 decimal; null when denominator is 0.
+ * Note: open rate is intentionally NOT surfaced — Apple Mail Privacy Protection
+ * pre-fetches tracking pixels and makes the metric noise. Click rate is the
+ * trustworthy email signal.
+ */
+function computeEmailRate(numerator: number | null, denominator: number | null) {
+  if (!denominator || denominator <= 0) return null
+  if (numerator == null) return null
+  return Math.round((numerator / denominator) * 1000) / 10
+}
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -43,6 +57,9 @@ export default async function AnnouncementDetailPage({ params }: Props) {
   if (!announcement) notFound()
 
   const a = announcement
+  const topLinks =
+    a.status === 'sent' ? await fetchTopClickedLinks(a.id) : []
+  const emailClickRate = computeEmailRate(a.email_clicked, a.email_sent)
   const sentDate = a.sent_at
     ? new Date(a.sent_at).toLocaleDateString('en-US', {
         month: 'short',
@@ -107,7 +124,7 @@ export default async function AnnouncementDetailPage({ params }: Props) {
               syncedAt={a.engagement_metrics_synced_at}
             />
           </div>
-          <div className="mb-8 grid grid-cols-2 gap-4">
+          <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-3">
             <StatCard
               label="Recipients Reached"
               value={formatNumber(a.recipients_reached)}
@@ -119,7 +136,7 @@ export default async function AnnouncementDetailPage({ params }: Props) {
               icon={Users}
             />
             <StatCard
-              label="Open Rate"
+              label="Push Open Rate"
               value={formatPct(a.open_rate)}
               subtitle={
                 a.unique_opens != null
@@ -129,17 +146,47 @@ export default async function AnnouncementDetailPage({ params }: Props) {
               subtitleColor="green"
               icon={Eye}
             />
+            <StatCard
+              label="Email Click Rate"
+              value={emailClickRate != null ? `${emailClickRate}%` : '-'}
+              subtitle={
+                a.email_clicked != null
+                  ? `${formatNumber(a.email_clicked)} unique clickers of ${formatNumber(a.email_sent)} sent`
+                  : a.email_sent != null
+                    ? `awaiting clicks (${formatNumber(a.email_sent)} sent)`
+                    : 'awaiting SendGrid webhook'
+              }
+              subtitleColor="green"
+              icon={MousePointerClick}
+            />
           </div>
 
           {/* Delivery Funnel + Content Snapshot */}
           <div className="mb-8 grid grid-cols-[1fr_360px] gap-6">
             <DeliveryFunnel
-              steps={[
-                { label: 'Sent', value: a.funnel_sent ?? 0 },
-                { label: 'Delivered', value: a.funnel_delivered ?? 0 },
-                { label: 'Opened', value: a.funnel_opened ?? 0 },
+              channels={[
+                {
+                  title: 'Push (AWS SNS)',
+                  steps: [
+                    { label: 'Sent', value: a.funnel_sent ?? 0 },
+                    { label: 'Delivered', value: a.funnel_delivered ?? 0 },
+                    { label: 'Opened', value: a.funnel_opened ?? 0 },
+                  ],
+                },
+                {
+                  title: 'Email (SendGrid)',
+                  subtitle:
+                    "Only users with email frequency = 'live' receive announcement emails. Open rate not shown — Apple Mail pre-fetch makes it unreliable; click rate is the real signal.",
+                  barClassName: 'bg-blue-600',
+                  steps: [
+                    { label: 'Sent', value: a.email_sent ?? 0 },
+                    { label: 'Delivered', value: a.email_delivered ?? 0 },
+                    { label: 'Clicked', value: a.email_clicked ?? 0 },
+                  ],
+                },
               ]}
             />
+
             <Card>
               <CardHeader>
                 <CardTitle>Content Snapshot</CardTitle>
@@ -169,6 +216,11 @@ export default async function AnnouncementDetailPage({ params }: Props) {
                 ) : null}
               </CardContent>
             </Card>
+          </div>
+
+          {/* Top Clicked Links (Email) */}
+          <div className="mb-8">
+            <TopClickedLinks rows={topLinks} />
           </div>
 
           {/* Downstream Actions + Audience */}

@@ -33,11 +33,52 @@ export type Announcement = {
   funnel_delivered: number | null
   funnel_opened: number | null
 
+  /**
+   * Email funnel (from SendGrid Event Webhook, keyed by custom_args.announcement_id).
+   * Denominator for email rates is `email_sent`, NOT audience_size — only users with
+   * email_frequency='live' receive an announcement email.
+   * Open rate is intentionally omitted (Apple Mail pre-fetch makes it unreliable);
+   * raw `open` events still land in the `email_events` table if ever needed.
+   */
+  email_sent: number | null
+  email_delivered: number | null
+  email_clicked: number | null
+  email_bounced: number | null
+  email_unsubscribed: number | null
+  email_spam_reported: number | null
+  email_metrics_synced_at: string | null
+
   /** Last successful sync of open metrics from Discovery (cron or manual). */
   engagement_metrics_synced_at: string | null
 
   created_at: string
   updated_at: string
+}
+
+/** Raw SendGrid Event Webhook event; one row per sg_event_id. */
+export type EmailEvent = {
+  sg_event_id: string
+  announcement_id: string | null
+  user_id: string | null
+  event_type:
+    | 'processed'
+    | 'delivered'
+    | 'open'
+    | 'click'
+    | 'bounce'
+    | 'dropped'
+    | 'deferred'
+    | 'spamreport'
+    | 'unsubscribe'
+    | 'group_unsubscribe'
+    | 'group_resubscribe'
+  url: string | null
+  sg_message_id: string | null
+  reason: string | null
+  user_agent: string | null
+  ip: string | null
+  ts: string
+  received_at: string
 }
 
 export type AutomatedTrigger = {
@@ -111,6 +152,12 @@ export type Database = {
         Row: TriggerPerformance
         Insert: Partial<TriggerPerformance> & Pick<TriggerPerformance, 'trigger_id' | 'month'>
         Update: Partial<TriggerPerformance>
+        Relationships: []
+      }
+      email_events: {
+        Row: EmailEvent
+        Insert: Omit<EmailEvent, 'received_at'> & Partial<Pick<EmailEvent, 'received_at'>>
+        Update: Partial<EmailEvent>
         Relationships: []
       }
     }
