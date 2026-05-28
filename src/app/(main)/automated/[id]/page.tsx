@@ -45,25 +45,25 @@ export default async function TriggerDetailPage({ params }: Props) {
     <div className="p-10">
       {/* Header */}
       <div className="mb-8">
-        <Button variant="ghost" size="sm" className="mb-4 -ml-2" render={<Link href="/automated" />}>
+        <Button variant="ghost" size="sm" className="mb-4 -ml-2" nativeButton={false} render={<Link href="/automated" />}>
           <ArrowLeft className="mr-1 size-4" />
           Back to Automated
         </Button>
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <div className="flex size-8 items-center justify-center rounded-full bg-amber-50">
-                <Zap className="size-4 text-amber-600" />
+              <div className="flex size-9 items-center justify-center rounded-lg bg-amber-100">
+                <Zap className="size-5 text-amber-600" />
               </div>
               <h1 className="text-3xl font-bold tracking-tight">
                 {trigger.name}
               </h1>
               <Badge
-                variant={trigger.is_active ? 'default' : 'secondary'}
+                variant="outline"
                 className={
                   trigger.is_active
-                    ? 'bg-green-100 text-green-800 hover:bg-green-100'
-                    : ''
+                    ? 'border-green-200 bg-green-50 uppercase tracking-wider text-green-700'
+                    : 'uppercase tracking-wider'
                 }
               >
                 {trigger.is_active ? 'Active' : 'Paused'}
