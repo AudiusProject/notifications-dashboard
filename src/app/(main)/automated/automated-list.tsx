@@ -50,7 +50,7 @@ export function AutomatedList({ triggers: initial }: Props) {
         {filtered.map((trigger) => (
           <Card key={trigger.id}>
             <CardContent className="flex items-start gap-6 p-6">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-50">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-50">
                 <Zap className="size-5 text-amber-600" />
               </div>
 
@@ -73,29 +73,31 @@ export function AutomatedList({ triggers: initial }: Props) {
                   {trigger.trigger_condition}
                 </div>
 
-                <div className="mt-3 rounded-md border-l-2 border-amber-300 bg-amber-50/50 px-3 py-2">
+                <div className="mt-3 rounded-md border-l-2 border-neutral-200 px-3 py-2">
                   <p className="text-sm font-medium">{trigger.heading}</p>
                   <p className="text-xs text-neutral-500">{trigger.body}</p>
                 </div>
+              </div>
 
-                <p className="mt-3 text-xs text-neutral-400">
+              <div className="flex shrink-0 flex-col items-end justify-between gap-2 self-stretch">
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" render={<Link href={`/automated/${trigger.id}`} />}>
+                    View Metrics
+                  </Button>
+                  <Button size="sm" onClick={() => setEditingTrigger(trigger)}>
+                    ✏️ Edit Copy
+                  </Button>
+                </div>
+                <p className="text-right text-xs text-neutral-400">
                   Last updated{' '}
                   {new Date(trigger.updated_at).toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric',
-                  })}{' '}
+                  })}
+                  <br />
                   by {trigger.last_updated_by ?? 'Unknown'}
                 </p>
-              </div>
-
-              <div className="flex shrink-0 gap-2">
-                <Button variant="outline" size="sm" render={<Link href={`/automated/${trigger.id}`} />}>
-                  View Metrics
-                </Button>
-                <Button size="sm" onClick={() => setEditingTrigger(trigger)}>
-                  ✏️ Edit Copy
-                </Button>
               </div>
             </CardContent>
           </Card>
