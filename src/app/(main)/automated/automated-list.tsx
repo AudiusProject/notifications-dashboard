@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Search, Zap, Clock } from 'lucide-react'
+import { Search, Zap, Clock, Pencil } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -50,42 +50,47 @@ export function AutomatedList({ triggers: initial }: Props) {
         {filtered.map((trigger) => (
           <Card key={trigger.id}>
             <CardContent className="flex items-start gap-6 p-6">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-50">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-100">
                 <Zap className="size-5 text-amber-600" />
               </div>
 
               <div className="flex-1">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <h3 className="text-base font-semibold">{trigger.name}</h3>
                   <Badge
-                    variant={trigger.is_active ? 'default' : 'secondary'}
+                    variant="outline"
                     className={
                       trigger.is_active
-                        ? 'bg-green-100 text-green-800 hover:bg-green-100'
-                        : ''
+                        ? 'border-green-200 bg-green-50 text-[10px] uppercase tracking-wider text-green-700'
+                        : 'text-[10px] uppercase tracking-wider'
                     }
                   >
                     {trigger.is_active ? 'Active' : 'Paused'}
                   </Badge>
                 </div>
-                <div className="mt-1 flex items-center gap-1 text-sm text-neutral-500">
+                <div className="mt-1 flex items-center gap-1.5 text-sm text-neutral-500">
                   <Clock className="size-3.5" />
                   {trigger.trigger_condition}
                 </div>
 
-                <div className="mt-3 rounded-md border-l-2 border-neutral-200 px-3 py-2">
-                  <p className="text-sm font-medium">{trigger.heading}</p>
-                  <p className="text-xs text-neutral-500">{trigger.body}</p>
+                <div className="mt-3 border-l-2 border-neutral-200 pl-3.5">
+                  <p className="truncate text-sm font-medium text-neutral-900">
+                    {trigger.heading}
+                  </p>
+                  <p className="truncate text-sm text-neutral-500">
+                    {trigger.body}
+                  </p>
                 </div>
               </div>
 
               <div className="flex shrink-0 flex-col items-end justify-between gap-2 self-stretch">
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" render={<Link href={`/automated/${trigger.id}`} />}>
+                  <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/automated/${trigger.id}`} />}>
                     View Metrics
                   </Button>
                   <Button size="sm" onClick={() => setEditingTrigger(trigger)}>
-                    ✏️ Edit Copy
+                    <Pencil className="mr-1.5 size-3.5" />
+                    Edit Copy
                   </Button>
                 </div>
                 <p className="text-right text-xs text-neutral-400">
