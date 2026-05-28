@@ -72,7 +72,7 @@ export default async function AnnouncementDetailPage({ params }: Props) {
     <div className="p-10">
       {/* Header */}
       <div className="mb-8">
-        <Button variant="ghost" size="sm" className="mb-4 -ml-2" render={<Link href="/announcements" />}>
+        <Button variant="ghost" size="sm" className="mb-4 -ml-2" nativeButton={false} render={<Link href="/announcements" />}>
           <ArrowLeft className="mr-1 size-4" />
           Back
         </Button>

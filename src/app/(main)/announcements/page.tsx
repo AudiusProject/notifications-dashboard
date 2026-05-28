@@ -24,7 +24,7 @@ export default async function AnnouncementsPage() {
             Manage and review sent, drafted, and ready notifications.
           </p>
         </div>
-        <Button render={<Link href="/announcements/new" />}>
+        <Button nativeButton={false} render={<Link href="/announcements/new" />}>
           <Plus className="mr-2 size-4" />
           Create Announcement
         </Button>

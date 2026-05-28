@@ -183,7 +183,7 @@ export function AnnouncementForm() {
   return (
     <div className="p-10">
       <div className="mb-6 flex items-center gap-4">
-        <Button variant="ghost" size="icon" render={<Link href="/announcements" />}>
+        <Button variant="ghost" size="icon" nativeButton={false} render={<Link href="/announcements" />}>
           <ArrowLeft className="size-5" />
         </Button>
         <div>
