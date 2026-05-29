@@ -4,6 +4,8 @@ import { getSessionFromToken, getSessionCookieName } from '@/lib/auth'
 
 const LOGIN_PATH = '/login'
 const AUTH_API_PREFIX = '/api/auth'
+const CRON_API_PREFIX = '/api/cron'
+const WEBHOOK_API_PREFIX = '/api/webhooks'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -11,7 +13,11 @@ export async function middleware(request: NextRequest) {
 
   const session = token ? await getSessionFromToken(token) : null
 
-  if (pathname.startsWith(AUTH_API_PREFIX)) {
+  if (
+    pathname.startsWith(AUTH_API_PREFIX) ||
+    pathname.startsWith(CRON_API_PREFIX) ||
+    pathname.startsWith(WEBHOOK_API_PREFIX)
+  ) {
     return NextResponse.next()
   }
 
