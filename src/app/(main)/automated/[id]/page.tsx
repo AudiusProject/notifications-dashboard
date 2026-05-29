@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Zap, Clock, Users, Eye, TrendingUp, UserMinus } from 'lucide-react'
+import { ArrowLeft, Zap, Clock, Users, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,11 +19,6 @@ function formatNumber(n: number | null) {
   return n.toLocaleString()
 }
 
-function formatPct(n: number | null) {
-  if (n == null) return '-'
-  const sign = n >= 0 ? '+' : ''
-  return `${sign}${n}%`
-}
 
 export default async function TriggerDetailPage({ params }: Props) {
   const { id } = await params
@@ -79,38 +74,22 @@ export default async function TriggerDetailPage({ params }: Props) {
       </div>
 
       {/* Stat Cards */}
-      <div className="mb-8 grid grid-cols-4 gap-4">
+      <div className="mb-8 grid grid-cols-2 gap-4">
         <StatCard
           label="30D Audience Reached"
           value={formatNumber(trigger.audience_reached_30d)}
-          subtitle={trigger.audience_reached_vs_last ?? undefined}
+          subtitle={trigger.engagement_metrics_synced_at
+            ? `Synced ${new Date(trigger.engagement_metrics_synced_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+            : 'Not yet synced'}
           subtitleColor="green"
           icon={Users}
         />
         <StatCard
-          label="30D Open Rate"
+          label="Open Rate"
           value={trigger.open_rate_30d != null ? `${trigger.open_rate_30d}%` : '-'}
-          subtitle={trigger.open_rate_vs_avg ?? undefined}
+          subtitle="Lifetime opens / sends"
           subtitleColor="green"
           icon={Eye}
-        />
-        <StatCard
-          label="Retention Uplift"
-          value={formatPct(trigger.retention_uplift)}
-          subtitle={trigger.retention_uplift_sig ?? undefined}
-          subtitleColor="green"
-          icon={TrendingUp}
-        />
-        <StatCard
-          label="Disable Rate"
-          value={trigger.disable_rate != null ? `${trigger.disable_rate}%` : '-'}
-          subtitle={
-            trigger.disables_30d != null
-              ? `✕ ${formatNumber(trigger.disables_30d)} unsubscribes`
-              : undefined
-          }
-          subtitleColor="red"
-          icon={UserMinus}
         />
       </div>
 
@@ -165,52 +144,6 @@ export default async function TriggerDetailPage({ params }: Props) {
         </Card>
       </div>
 
-      {/* Impact on Session Frequency */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Impact on Session Frequency</CardTitle>
-          <p className="text-sm text-neutral-500">
-            Post-notification engagement from target cohort
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-lg border p-4">
-              <span className="text-xs text-neutral-500">Return Day 1</span>
-              <p className="mt-1 text-2xl font-bold">
-                {trigger.return_day_1 != null ? `${trigger.return_day_1}%` : '-'}
-              </p>
-              {trigger.return_day_1_vs_control ? (
-                <span className="text-xs text-green-600">
-                  ↗ {trigger.return_day_1_vs_control}
-                </span>
-              ) : null}
-            </div>
-            <div className="rounded-lg border p-4">
-              <span className="text-xs text-neutral-500">Return Day 7</span>
-              <p className="mt-1 text-2xl font-bold">
-                {trigger.return_day_7 != null ? `${trigger.return_day_7}%` : '-'}
-              </p>
-              {trigger.return_day_7_vs_control ? (
-                <span className="text-xs text-green-600">
-                  ↗ {trigger.return_day_7_vs_control}
-                </span>
-              ) : null}
-            </div>
-            <div className="rounded-lg border p-4">
-              <span className="text-xs text-neutral-500">Churn Prevention</span>
-              <p className="mt-1 text-2xl font-bold">
-                {formatNumber(trigger.churn_prevention)}
-              </p>
-              {trigger.churn_prevention_label ? (
-                <span className="text-xs text-neutral-500">
-                  {trigger.churn_prevention_label}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
