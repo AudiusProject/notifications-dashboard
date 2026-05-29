@@ -1,20 +1,12 @@
 import { NextResponse } from 'next/server'
 
-import { findInactiveUsers } from '@/lib/discovery/inactiveUsers'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { AutomatedTrigger } from '@/lib/supabase/types'
 
 export const dynamic = 'force-dynamic'
-/** Vercel Pro+: raise if many triggers / large audiences need more time. */
-export const maxDuration = 120
+export const maxDuration = 60
 
 const SEND_BATCH_SIZE = 500
-/**
- * Inactivity band width (hours). MUST match this cron's schedule in vercel.json
- * so each user is caught exactly once per inactivity episode as they cross the
- * threshold. Cron runs hourly → window = 1.
- */
-const WINDOW_HOURS = 1
 
 type TriggerConfig = Pick<
   AutomatedTrigger,
@@ -51,8 +43,6 @@ async function sendTrigger(
         'Content-Type': 'application/json',
         ...(secret ? { Authorization: `Bearer ${secret}` } : {}),
       },
-      // notification_campaign_id = trigger id, so push opens attribute back to
-      // this automated trigger (same mechanism as one-off announcements).
       body: JSON.stringify({
         title: trigger.heading,
         body: trigger.body,
@@ -73,13 +63,27 @@ async function sendTrigger(
 }
 
 /**
- * Vercel Cron: re-engagement push for inactive users. For each active automated
- * trigger, queries the discovery DB for users who just crossed the trigger's
- * inactivity threshold, then sends via the notification service.
- * Requires `CRON_SECRET`, `NOTIFICATIONS_SERVICE_URL`, `ANNOUNCEMENT_SEND_SECRET`,
- * and `DN_DB_URL`.
+ * Test endpoint: sends automated trigger notifications to a fixed list of user
+ * IDs, bypassing the inactive-users query entirely. Useful for verifying copy
+ * and delivery without waiting for real inactivity thresholds to fire.
+ *
+ * Does NOT write to trigger_sends — test sends don't count toward audience
+ * metrics or open-rate denominators.
+ *
+ * Auth: same CRON_SECRET Bearer token as the live cron.
+ *
+ * POST body:
+ *   userIds   number[]   Required. User IDs to send to (max 100).
+ *   triggerIds string[]  Optional. Restrict to these trigger IDs. Omit to test
+ *                        all active triggers.
+ *
+ * Example:
+ *   curl -X POST https://<host>/api/cron/send-reengagement/test \
+ *     -H "Authorization: Bearer $CRON_SECRET" \
+ *     -H "Content-Type: application/json" \
+ *     -d '{"userIds":[12345,67890],"triggerIds":["<uuid>"]}'
  */
-export async function GET(request: Request) {
+export async function POST(request: Request) {
   const authError = verifyCron(request)
   if (authError) return authError
 
@@ -90,59 +94,87 @@ export async function GET(request: Request) {
       { status: 503 }
     )
   }
-  const sendSecret = process.env.ANNOUNCEMENT_SEND_SECRET
 
+  let body: { userIds?: unknown; triggerIds?: unknown }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+
+  const { userIds, triggerIds: rawTriggerIds } = body
+
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return NextResponse.json(
+      { error: 'userIds must be a non-empty array of user IDs' },
+      { status: 400 }
+    )
+  }
+  if (userIds.length > 100) {
+    return NextResponse.json(
+      { error: 'userIds is capped at 100 for test sends' },
+      { status: 400 }
+    )
+  }
+  if (!userIds.every((id) => typeof id === 'number' && Number.isInteger(id))) {
+    return NextResponse.json(
+      { error: 'All userIds must be integers' },
+      { status: 400 }
+    )
+  }
+
+  const triggerIds = Array.isArray(rawTriggerIds)
+    ? (rawTriggerIds as string[])
+    : null
+
+  const sendSecret = process.env.ANNOUNCEMENT_SEND_SECRET
   const supabase = getSupabaseAdmin()
-  const { data: rows, error } = await supabase
+
+  let query = supabase
     .from('automated_triggers')
     .select('id, name, trigger_hours, heading, body, image_url, cta_link')
     .eq('is_active', true)
     .gt('trigger_hours', 0)
+
+  if (triggerIds) {
+    query = query.in('id', triggerIds)
+  }
+
+  const { data: rows, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
   const triggers = (rows ?? []) as TriggerConfig[]
+
+  if (triggers.length === 0) {
+    return NextResponse.json(
+      { error: 'No matching active triggers found' },
+      { status: 404 }
+    )
+  }
+
   const results: Array<{
     id: string
     name: string
-    candidates: number
     sent: number
     error?: string
   }> = []
 
   for (const trigger of triggers) {
     try {
-      const userIds = await findInactiveUsers(
-        trigger.trigger_hours,
-        WINDOW_HOURS,
-        100_000
+      const sent = await sendTrigger(
+        baseUrl,
+        sendSecret,
+        trigger,
+        userIds as number[]
       )
-      const sent =
-        userIds.length > 0
-          ? await sendTrigger(baseUrl, sendSecret, trigger, userIds)
-          : 0
-
-      // Log send count to trigger_sends for audience_reached_30d tracking.
-      if (sent > 0) {
-        await supabase.from('trigger_sends').insert({
-          trigger_id: trigger.id,
-          sent_at: new Date().toISOString(),
-          user_count: sent,
-        })
-      }
-      results.push({
-        id: trigger.id,
-        name: trigger.name,
-        candidates: userIds.length,
-        sent,
-      })
+      results.push({ id: trigger.id, name: trigger.name, sent })
     } catch (err) {
       results.push({
         id: trigger.id,
         name: trigger.name,
-        candidates: 0,
         sent: 0,
         error: err instanceof Error ? err.message : 'failed',
       })
@@ -151,7 +183,8 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    triggers: triggers.length,
+    test_user_ids: userIds,
+    triggers_tested: triggers.length,
     results,
   })
 }

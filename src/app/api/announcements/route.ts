@@ -14,6 +14,13 @@ import {
   NOTIFICATION_HEADING_MAX_LENGTH,
 } from '@/lib/notificationCopyLimits'
 import type { Announcement } from '@/lib/supabase/types'
+
+type AnnouncementStatus = Announcement['status']
+
+function parseAnnouncementStatus(value: FormDataEntryValue | null): AnnouncementStatus {
+  return value === 'ready' ? 'ready' : 'draft'
+}
+
 export async function GET(request: NextRequest) {
   const session = await getSessionFromRequest(request)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -38,7 +45,7 @@ export async function POST(request: NextRequest) {
   const heading = formData.get('heading') as string
   const body = formData.get('body') as string
   const cta_link = (formData.get('cta_link') as string) || null
-  const status = (formData.get('status') as string) || 'draft'
+  const status = parseAnnouncementStatus(formData.get('status'))
   const created_by = displayNameFromSession(session)
 
   if (heading.length > NOTIFICATION_HEADING_MAX_LENGTH) {
@@ -145,8 +152,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('announcements')
     .insert({
       internal_label,
@@ -162,7 +168,7 @@ export async function POST(request: NextRequest) {
       invalid_rows,
     })
     .select()
-    .single()
+    .single<Announcement>()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -172,7 +178,7 @@ export async function POST(request: NextRequest) {
       user_id,
     }))
     const uniq = Array.from(new Map(recipients.map((r) => [r.user_id, r])).values())
-    const { error: recipientsError } = await (supabase as any)
+    const { error: recipientsError } = await supabase
       .from('announcement_recipients')
       .insert(uniq)
     if (recipientsError) {
