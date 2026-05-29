@@ -92,25 +92,22 @@ export type AutomatedTrigger = {
   image_url: string | null
   cta_link: string | null
 
+  /** Distinct sends in the last 30 days (from trigger_sends); populated by cron. */
   audience_reached_30d: number | null
-  audience_reached_vs_last: string | null
+  /** Lifetime unique opens (Discovery) / lifetime sends; populated by cron. */
   open_rate_30d: number | null
-  open_rate_vs_avg: string | null
-  retention_uplift: number | null
-  retention_uplift_sig: string | null
-  disable_rate: number | null
-  disables_30d: number | null
-
-  return_day_1: number | null
-  return_day_1_vs_control: string | null
-  return_day_7: number | null
-  return_day_7_vs_control: string | null
-  churn_prevention: number | null
-  churn_prevention_label: string | null
 
   last_updated_by: string | null
+  engagement_metrics_synced_at: string | null
   created_at: string
   updated_at: string
+}
+
+export type TriggerSend = {
+  id: string
+  trigger_id: string
+  sent_at: string
+  user_count: number
 }
 
 export type AnnouncementRecipient = {
@@ -152,6 +149,12 @@ export type Database = {
         Row: TriggerPerformance
         Insert: Partial<TriggerPerformance> & Pick<TriggerPerformance, 'trigger_id' | 'month'>
         Update: Partial<TriggerPerformance>
+        Relationships: []
+      }
+      trigger_sends: {
+        Row: TriggerSend
+        Insert: Omit<TriggerSend, 'id' | 'sent_at'> & Partial<Pick<TriggerSend, 'id' | 'sent_at'>>
+        Update: Partial<TriggerSend>
         Relationships: []
       }
       email_events: {

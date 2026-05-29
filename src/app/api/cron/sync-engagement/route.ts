@@ -5,6 +5,7 @@ import {
   type AnnouncementRow,
 } from '@/lib/engagement/syncAnnouncementEngagement'
 import { syncEmailEngagementById } from '@/lib/engagement/syncEmailEngagement'
+import { syncAllTriggerEngagement } from '@/lib/engagement/syncTriggerEngagement'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { notificationCampaignOpenMetricsConfigured } from '@/lib/discovery/notificationCampaignPushOpens'
 
@@ -102,11 +103,20 @@ export async function GET(request: Request) {
 
   const pushOk = results.filter((r) => r.push.ok).length
   const emailOk = results.filter((r) => r.email.ok).length
+
+  // Sync automated trigger open rates (runs after announcements; no inter-item sleep
+  // needed since trigger count is small and each call is fast).
+  const triggerResults = await syncAllTriggerEngagement()
+  const triggersOk = triggerResults.filter((r) => r.ok).length
+
   return NextResponse.json({
     ok: true,
     processed: announcements.length,
     push_updated: pushOk,
     email_updated: emailOk,
     results,
+    triggers_processed: triggerResults.length,
+    triggers_updated: triggersOk,
+    trigger_results: triggerResults,
   })
 }

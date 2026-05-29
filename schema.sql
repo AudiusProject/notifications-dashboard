@@ -83,25 +83,15 @@ CREATE TABLE automated_triggers (
   image_url TEXT,
   cta_link TEXT,
 
-  -- Rolling 30-day stats
+  -- Rolling 30-day stats (populated by cron via trigger_sends + Discovery open API)
   audience_reached_30d INTEGER,
-  audience_reached_vs_last TEXT,
   open_rate_30d NUMERIC(5,2),
-  open_rate_vs_avg TEXT,
-  retention_uplift NUMERIC(5,2),
-  retention_uplift_sig TEXT,
-  disable_rate NUMERIC(5,2),
-  disables_30d INTEGER,
 
-  -- Impact on session frequency
-  return_day_1 NUMERIC(5,2),
-  return_day_1_vs_control TEXT,
-  return_day_7 NUMERIC(5,2),
-  return_day_7_vs_control TEXT,
-  churn_prevention INTEGER,
-  churn_prevention_label TEXT,
+  -- Populated when a measurement pipeline exists (not currently computed)
+  -- retention_uplift, disable_rate, return_day_1/7, churn_prevention: removed
 
   last_updated_by TEXT,
+  engagement_metrics_synced_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -146,6 +136,38 @@ CREATE TABLE trigger_performance (
 );
 
 CREATE INDEX idx_trigger_performance_trigger ON trigger_performance(trigger_id);
+
+-- Per-run send summary for automated triggers. One row per cron run per trigger,
+-- recording how many users were sent notifications in that run. Used to compute
+-- audience_reached_30d (sum of user_count in last 30d) and as the denominator
+-- for open rate (sum of user_count across all time).
+CREATE TABLE trigger_sends (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  trigger_id UUID NOT NULL REFERENCES automated_triggers(id) ON DELETE CASCADE,
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  user_count INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_trigger_sends_trigger_sent ON trigger_sends(trigger_id, sent_at DESC);
+
+ALTER TABLE trigger_sends ENABLE ROW LEVEL SECURITY;
+
+-- Existing databases: add trigger_sends table and drop removed columns
+-- ALTER TABLE automated_triggers DROP COLUMN IF EXISTS audience_reached_vs_last;
+-- ALTER TABLE automated_triggers DROP COLUMN IF EXISTS open_rate_vs_avg;
+-- ALTER TABLE automated_triggers DROP COLUMN IF EXISTS retention_uplift;
+-- ALTER TABLE automated_triggers DROP COLUMN IF EXISTS retention_uplift_sig;
+-- ALTER TABLE automated_triggers DROP COLUMN IF EXISTS disable_rate;
+-- ALTER TABLE automated_triggers DROP COLUMN IF EXISTS disables_30d;
+-- ALTER TABLE automated_triggers DROP COLUMN IF EXISTS return_day_1;
+-- ALTER TABLE automated_triggers DROP COLUMN IF EXISTS return_day_1_vs_control;
+-- ALTER TABLE automated_triggers DROP COLUMN IF EXISTS return_day_7;
+-- ALTER TABLE automated_triggers DROP COLUMN IF EXISTS return_day_7_vs_control;
+-- ALTER TABLE automated_triggers DROP COLUMN IF EXISTS churn_prevention;
+-- ALTER TABLE automated_triggers DROP COLUMN IF EXISTS churn_prevention_label;
+-- ALTER TABLE automated_triggers ADD COLUMN IF NOT EXISTS engagement_metrics_synced_at TIMESTAMPTZ;
+-- Then run the CREATE TABLE trigger_sends + its indexes above.
+
 CREATE INDEX idx_announcements_status ON announcements(status);
 CREATE INDEX idx_announcements_created ON announcements(created_at DESC);
 
@@ -163,6 +185,17 @@ CREATE INDEX idx_announcements_created ON announcements(created_at DESC);
 -- ALTER TABLE announcements RENAME COLUMN amplitude_engagement_synced_at TO engagement_metrics_synced_at;
 -- Removed funnel_clicked (same as opens for push metrics):
 -- ALTER TABLE announcements DROP COLUMN IF EXISTS funnel_clicked;
+
+-- Migration for existing DBs (trigger_sends schema change — per-user → per-run):
+-- DROP TABLE IF EXISTS trigger_sends;
+-- CREATE TABLE trigger_sends (
+--   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+--   trigger_id UUID NOT NULL REFERENCES automated_triggers(id) ON DELETE CASCADE,
+--   sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   user_count INTEGER NOT NULL DEFAULT 0
+-- );
+-- CREATE INDEX idx_trigger_sends_trigger_sent ON trigger_sends(trigger_id, sent_at DESC);
+-- ALTER TABLE trigger_sends ENABLE ROW LEVEL SECURITY;
 
 -- Existing projects: add email tracking columns + email_events table
 -- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS email_sent INTEGER;
@@ -182,44 +215,15 @@ ALTER TABLE automated_triggers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trigger_performance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE announcement_recipients ENABLE ROW LEVEL SECURITY;
 
--- Seed automated triggers
-INSERT INTO automated_triggers (name, trigger_condition, trigger_hours, heading, body, is_active, last_updated_by,
-  audience_reached_30d, audience_reached_vs_last, open_rate_30d, open_rate_vs_avg,
-  retention_uplift, retention_uplift_sig, disable_rate, disables_30d,
-  return_day_1, return_day_1_vs_control, return_day_7, return_day_7_vs_control,
-  churn_prevention, churn_prevention_label
-) VALUES
+-- Seed automated triggers (stats columns left NULL; populated by cron after real sends)
+INSERT INTO automated_triggers (name, trigger_condition, trigger_hours, heading, body, is_active, last_updated_by)
+VALUES
   ('3-day inactivity', 'User has not opened app for 72 hours', 72,
-   'We saved something for you 👀', 'Come back and see what is new since your last session.', true, 'Michael',
-   1400000, '+12% vs last mo', 28.00, '+2.1% vs avg',
-   1.20, 'Stat sig (p<0.05)', 0.80, 2401,
-   42.00, '+5% vs control', 18.00, '+2% vs control',
-   4800, 'Users retained this month'),
+   'We saved something for you 👀', 'Come back and see what is new since your last session.', true, 'Michael'),
   ('7-day inactivity', 'User has not opened app for 168 hours', 168,
-   'Your feed has new picks 💎', 'Artists and tracks you may like are waiting.', true, 'Ciara',
-   980000, '+8% vs last mo', 24.00, '+1.8% vs avg',
-   0.90, 'Stat sig (p<0.05)', 1.10, 1876,
-   35.00, '+3% vs control', 14.00, '+1% vs control',
-   3200, 'Users retained this month'),
+   'Your feed has new picks 💎', 'Artists and tracks you may like are waiting.', true, 'Ciara'),
   ('30-day inactivity', 'User has not opened app for 720 hours', 720,
-   'It has been a while', 'Return to discover new music and pick up where you left off.', true, 'Julian',
-   450000, '+5% vs last mo', 18.00, '+0.9% vs avg',
-   0.50, 'Not sig', 1.80, 3102,
-   22.00, '+2% vs control', 8.00, '+0.5% vs control',
-   1800, 'Users retained this month');
-
--- Seed trigger performance (6 months of data for 3-day inactivity)
-INSERT INTO trigger_performance (trigger_id, month, audience_reached, actual_opens)
-SELECT id, m.month, m.reached, m.opens
-FROM automated_triggers, (VALUES
-  ('Jan', 8500, 1800),
-  ('Feb', 12000, 3200),
-  ('Mar', 18000, 5400),
-  ('Apr', 22000, 7200),
-  ('May', 28000, 9800),
-  ('Jun', 32000, 11200)
-) AS m(month, reached, opens)
-WHERE automated_triggers.name = '3-day inactivity';
+   'It''s been a while', 'Return to discover new music and pick up where you left off.', true, 'Julian');
 
 -- Seed some announcements
 INSERT INTO announcements (
