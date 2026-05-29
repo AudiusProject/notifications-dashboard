@@ -138,6 +138,15 @@ export async function GET(request: Request) {
         userIds.length > 0
           ? await sendTrigger(baseUrl, sendSecret, trigger, userIds)
           : 0
+
+      // Log send count to trigger_sends for audience_reached_30d tracking.
+      if (sent > 0) {
+        await supabase.from('trigger_sends').insert({
+          trigger_id: trigger.id,
+          sent_at: new Date().toISOString(),
+          user_count: sent,
+        })
+      }
       results.push({
         id: trigger.id,
         name: trigger.name,

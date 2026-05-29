@@ -30,11 +30,11 @@ export async function syncTriggerEngagementById(
 
   const supabase = getSupabaseAdmin()
 
-  // 30-day audience: distinct users sent this trigger in the last 30 days.
+  // 30-day audience: sum of user_count for runs in the last 30 days.
   const since30d = new Date(Date.now() - THIRTY_DAYS_MS).toISOString()
-  const { count: audienceReached30d, error: countErr } = await supabase
+  const { data: sends30d, error: countErr } = await supabase
     .from('trigger_sends')
-    .select('*', { count: 'exact', head: true })
+    .select('user_count')
     .eq('trigger_id', triggerId)
     .gte('sent_at', since30d)
 
@@ -42,15 +42,22 @@ export async function syncTriggerEngagementById(
     return { ok: false, error: `trigger_sends count: ${countErr.message}` }
   }
 
-  // Lifetime sends: denominator for open rate.
-  const { count: totalSends, error: totalErr } = await supabase
+  const audienceReached30d = (sends30d ?? []).reduce(
+    (sum, r) => sum + r.user_count,
+    0
+  )
+
+  // Lifetime sends: sum of user_count across all runs (denominator for open rate).
+  const { data: sendsAll, error: totalErr } = await supabase
     .from('trigger_sends')
-    .select('*', { count: 'exact', head: true })
+    .select('user_count')
     .eq('trigger_id', triggerId)
 
   if (totalErr) {
     return { ok: false, error: `trigger_sends total: ${totalErr.message}` }
   }
+
+  const totalSends = (sendsAll ?? []).reduce((sum, r) => sum + r.user_count, 0)
 
   // Lifetime unique opens from Discovery (same endpoint as announcements).
   let pushOpens = 0
@@ -63,7 +70,7 @@ export async function syncTriggerEngagementById(
     }
   }
 
-  const openRate = computeRatePercent(totalSends ?? 0, pushOpens)
+  const openRate = computeRatePercent(totalSends, pushOpens)
   const syncedAt = new Date().toISOString()
 
   const { error: upErr } = await supabase

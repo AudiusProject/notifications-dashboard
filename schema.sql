@@ -137,19 +137,18 @@ CREATE TABLE trigger_performance (
 
 CREATE INDEX idx_trigger_performance_trigger ON trigger_performance(trigger_id);
 
--- Per-user send log for automated triggers. Used to compute audience_reached_30d
--- and as the denominator for open rate. Logged by the notification sender at
--- send time, keyed by (trigger_id, user_id, sent_at) to allow re-sends after
--- long gaps without deduplication false-positives.
+-- Per-run send summary for automated triggers. One row per cron run per trigger,
+-- recording how many users were sent notifications in that run. Used to compute
+-- audience_reached_30d (sum of user_count in last 30d) and as the denominator
+-- for open rate (sum of user_count across all time).
 CREATE TABLE trigger_sends (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   trigger_id UUID NOT NULL REFERENCES automated_triggers(id) ON DELETE CASCADE,
-  user_id BIGINT NOT NULL,
-  sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  user_count INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX idx_trigger_sends_trigger_sent ON trigger_sends(trigger_id, sent_at DESC);
-CREATE INDEX idx_trigger_sends_user ON trigger_sends(user_id);
 
 ALTER TABLE trigger_sends ENABLE ROW LEVEL SECURITY;
 
@@ -186,6 +185,17 @@ CREATE INDEX idx_announcements_created ON announcements(created_at DESC);
 -- ALTER TABLE announcements RENAME COLUMN amplitude_engagement_synced_at TO engagement_metrics_synced_at;
 -- Removed funnel_clicked (same as opens for push metrics):
 -- ALTER TABLE announcements DROP COLUMN IF EXISTS funnel_clicked;
+
+-- Migration for existing DBs (trigger_sends schema change — per-user → per-run):
+-- DROP TABLE IF EXISTS trigger_sends;
+-- CREATE TABLE trigger_sends (
+--   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+--   trigger_id UUID NOT NULL REFERENCES automated_triggers(id) ON DELETE CASCADE,
+--   sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   user_count INTEGER NOT NULL DEFAULT 0
+-- );
+-- CREATE INDEX idx_trigger_sends_trigger_sent ON trigger_sends(trigger_id, sent_at DESC);
+-- ALTER TABLE trigger_sends ENABLE ROW LEVEL SECURITY;
 
 -- Existing projects: add email tracking columns + email_events table
 -- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS email_sent INTEGER;

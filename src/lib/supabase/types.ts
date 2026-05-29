@@ -106,8 +106,8 @@ export type AutomatedTrigger = {
 export type TriggerSend = {
   id: string
   trigger_id: string
-  user_id: number
   sent_at: string
+  user_count: number
 }
 
 export type AnnouncementRecipient = {
@@ -153,7 +153,7 @@ export type Database = {
       }
       trigger_sends: {
         Row: TriggerSend
-        Insert: Omit<TriggerSend, 'id' | 'sent_at'> & Partial<Pick<TriggerSend, 'sent_at'>>
+        Insert: Omit<TriggerSend, 'id' | 'sent_at'> & Partial<Pick<TriggerSend, 'id' | 'sent_at'>>
         Update: Partial<TriggerSend>
         Relationships: []
       }
