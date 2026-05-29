@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ImageOff, Smartphone } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -28,11 +28,8 @@ function PreviewImage({
   className?: string
   rounded?: string
 }) {
-  const [failed, setFailed] = useState(false)
-
-  useEffect(() => {
-    setFailed(false)
-  }, [src])
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+  const failed = failedSrc === src
 
   if (failed) {
     return (
@@ -57,7 +54,7 @@ function PreviewImage({
       src={src}
       alt=""
       className={cn(rounded, className)}
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(src)}
     />
   )
 }

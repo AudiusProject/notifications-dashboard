@@ -47,7 +47,7 @@ export async function POST(request: NextRequest, { params }: Context) {
     )
   }
 
-  await (supabase as any)
+  await supabase
     .from('announcements')
     .update({
       status: 'sending',
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest, { params }: Context) {
   try {
     for (let i = 0; i < userIds.length; i += SEND_BATCH_SIZE) {
       const batch = userIds.slice(i, i + SEND_BATCH_SIZE)
-      const res = await fetch(`${baseUrl}/internal/send-announcement`, {
+      const res = await fetch(`${baseUrl}/internal/send-notification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest, { params }: Context) {
       sentCount += result.sent ?? batch.length
     }
 
-    await (supabase as any)
+    await supabase
       .from('announcements')
       .update({
         status: 'sent',
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest, { params }: Context) {
       })
       .eq('id', id)
   } catch (err) {
-    await (supabase as any)
+    await supabase
       .from('announcements')
       .update({
         status: 'failed',

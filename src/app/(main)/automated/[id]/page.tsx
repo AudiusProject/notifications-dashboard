@@ -9,6 +9,7 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { AutomatedTrigger, TriggerPerformance } from '@/lib/supabase/types'
 import { PerformanceChart } from './performance-chart'
 import { EditCopyButton } from './edit-copy-button'
+import { SendTestButton } from './send-test-button'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -69,7 +70,10 @@ export default async function TriggerDetailPage({ params }: Props) {
               Trigger: {trigger.trigger_condition}
             </div>
           </div>
-          <EditCopyButton trigger={trigger} />
+          <div className="flex items-center gap-2">
+            <SendTestButton triggerId={trigger.id} triggerName={trigger.name} />
+            <EditCopyButton trigger={trigger} />
+          </div>
         </div>
       </div>
 
