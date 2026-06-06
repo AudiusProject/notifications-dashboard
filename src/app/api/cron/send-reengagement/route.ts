@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 
-import { findInactiveUsers } from '@/lib/discovery/inactiveUsers'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { AutomatedTrigger } from '@/lib/supabase/types'
 
@@ -73,11 +72,35 @@ async function sendTrigger(
 }
 
 /**
+ * Fetches users who just crossed an inactivity threshold from the notification
+ * service's HTTP endpoint. Vercel can't reach the discovery DB directly
+ * (firewall), so the service queries it on our behalf.
+ */
+async function findInactiveUsers(
+  baseUrl: string,
+  secret: string | undefined,
+  hours: number,
+  windowHours: number,
+  limit: number
+): Promise<number[]> {
+  const url = `${baseUrl}/internal/inactive-users?hours=${hours}&windowHours=${windowHours}&limit=${limit}`
+  const res = await fetch(url, {
+    headers: secret ? { Authorization: `Bearer ${secret}` } : {},
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`inactive-users returned ${res.status}: ${text}`)
+  }
+  const result = (await res.json()) as { userIds?: number[] }
+  return result.userIds ?? []
+}
+
+/**
  * Vercel Cron: re-engagement push for inactive users. For each active automated
- * trigger, queries the discovery DB for users who just crossed the trigger's
- * inactivity threshold, then sends via the notification service.
- * Requires `CRON_SECRET`, `NOTIFICATIONS_SERVICE_URL`, `ANNOUNCEMENT_SEND_SECRET`,
- * and `DN_DB_URL`.
+ * trigger, asks the notification service for users who just crossed the
+ * trigger's inactivity threshold, then sends via that same service.
+ * Requires `CRON_SECRET`, `NOTIFICATIONS_SERVICE_URL`, and
+ * `ANNOUNCEMENT_SEND_SECRET`.
  */
 export async function GET(request: Request) {
   const authError = verifyCron(request)
@@ -115,6 +138,8 @@ export async function GET(request: Request) {
   for (const trigger of triggers) {
     try {
       const userIds = await findInactiveUsers(
+        baseUrl,
+        sendSecret,
         trigger.trigger_hours,
         WINDOW_HOURS,
         100_000
