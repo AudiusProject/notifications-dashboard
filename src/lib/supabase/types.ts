@@ -59,6 +59,7 @@ export type Announcement = {
 export type EmailEvent = {
   sg_event_id: string
   announcement_id: string | null
+  campaign_id: string | null
   user_id: string | null
   event_type:
     | 'processed'
