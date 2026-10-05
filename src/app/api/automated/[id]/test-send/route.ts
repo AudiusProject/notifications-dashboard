@@ -35,6 +35,8 @@ async function sendTrigger(
         route: trigger.cta_link ?? undefined,
         notification_campaign_id: trigger.id,
         userIds: batch,
+        // Re-engagement is push only. Emailing inactive users drives spam complaints.
+        notificationTypes: 'push',
       }),
     })
     if (!res.ok) {
