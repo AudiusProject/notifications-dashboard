@@ -19,7 +19,9 @@ import {
  *
  * Events without `announcement_id` in custom_args are logged with NULL
  * announcement_id so the row is still captured for debugging, but they won't
- * roll up into any announcement's funnel.
+ * roll up into any announcement's funnel. The raw id goes in `campaign_id`;
+ * `announcement_id` is set only for existing announcements so other ids
+ * (automated triggers) can't fail the FK and drop the batch.
  */
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs' // need node:crypto
@@ -85,15 +87,43 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const rows = events
+  const parsedRows = events
     .map((e) => toRow(e))
     .filter((r): r is NonNullable<typeof r> => r !== null)
 
-  if (rows.length === 0) {
+  if (parsedRows.length === 0) {
     return NextResponse.json({ ok: true, ingested: 0 })
   }
 
   const supabase = getSupabaseAdmin()
+
+  const campaignIds = [
+    ...new Set(
+      parsedRows
+        .map((r) => r.campaign_id)
+        .filter((id): id is string => id !== null)
+    ),
+  ]
+  let knownAnnouncementIds = new Set<string>()
+  if (campaignIds.length > 0) {
+    const { data, error: lookupError } = await supabase
+      .from('announcements')
+      .select('id')
+      .in('id', campaignIds)
+    if (lookupError) {
+      return NextResponse.json({ error: lookupError.message }, { status: 500 })
+    }
+    knownAnnouncementIds = new Set((data ?? []).map((a) => a.id))
+  }
+
+  const rows = parsedRows.map((r) => ({
+    ...r,
+    announcement_id:
+      r.campaign_id && knownAnnouncementIds.has(r.campaign_id)
+        ? r.campaign_id
+        : null,
+  }))
+
   const { error } = await supabase
     .from('email_events')
     .upsert(rows, { onConflict: 'sg_event_id', ignoreDuplicates: true })
@@ -111,7 +141,7 @@ function toRow(e: SendgridEvent) {
   if (!e.sg_event_id || !e.event || !e.timestamp) return null
   if (!ALLOWED_EVENT_TYPES.has(e.event)) return null
 
-  const announcementId =
+  const campaignId =
     typeof e.announcement_id === 'string' &&
     /^[0-9a-f-]{36}$/i.test(e.announcement_id)
       ? e.announcement_id
@@ -122,7 +152,8 @@ function toRow(e: SendgridEvent) {
 
   return {
     sg_event_id: e.sg_event_id,
-    announcement_id: announcementId,
+    announcement_id: null as string | null,
+    campaign_id: campaignId,
     user_id: userId,
     event_type: e.event as
       | 'processed'

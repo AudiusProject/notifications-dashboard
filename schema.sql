@@ -102,6 +102,9 @@ CREATE TABLE automated_triggers (
 CREATE TABLE email_events (
   sg_event_id TEXT PRIMARY KEY,
   announcement_id UUID REFERENCES announcements(id) ON DELETE CASCADE,
+  -- Raw custom_args.announcement_id. Can be an automated trigger id or an id
+  -- with no announcements row, so it has no FK.
+  campaign_id TEXT,
   user_id TEXT,
   event_type TEXT NOT NULL CHECK (event_type IN (
     'processed', 'delivered', 'open', 'click',
@@ -206,6 +209,8 @@ CREATE INDEX idx_announcements_created ON announcements(created_at DESC);
 -- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS email_spam_reported INTEGER;
 -- ALTER TABLE announcements ADD COLUMN IF NOT EXISTS email_metrics_synced_at TIMESTAMPTZ;
 -- Then run the CREATE TABLE email_events + its three indexes above.
+-- Existing projects: add campaign_id so events for unknown campaigns don't fail the FK
+-- ALTER TABLE email_events ADD COLUMN IF NOT EXISTS campaign_id TEXT;
 -- If you previously added email_opened during an earlier rollout, drop it:
 -- ALTER TABLE announcements DROP COLUMN IF EXISTS email_opened;
 
